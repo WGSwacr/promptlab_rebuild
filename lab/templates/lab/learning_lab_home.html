@@ -1,0 +1,40 @@
+{% extends "lab/base.html" %}
+{% block title %}Learning Lab{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h2>Learning Lab</h2>
+    <p>Create a session for case study and questionnaire collection.</p>
+  </div>
+</section>
+<div class="grid two-col">
+  <section class="card">
+    <h3>Create learning session</h3>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="button" type="submit">Start session</button>
+    </form>
+  </section>
+  <section class="card">
+    <h3>Existing sessions</h3>
+    <table>
+      <thead>
+        <tr><th>Participant</th><th>Profile</th><th>Status</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for session in sessions %}
+          <tr>
+            <td>{{ session.participant_code }}</td>
+            <td>{{ session.prompt_profile.name }}</td>
+            <td>{{ session.status }}</td>
+            <td><a href="{% url 'learning_lab_session' session.pk %}">Open</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">No sessions yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

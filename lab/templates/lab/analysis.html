@@ -1,0 +1,76 @@
+{% extends "lab/base.html" %}
+{% block title %}Analysis{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h2>Analysis</h2>
+    <p>Direct thesis-facing tables for Chapter 4.</p>
+  </div>
+</section>
+<section class="card">
+  <h3>System Performance</h3>
+  <table>
+    <tbody>
+      {% for item in system_stats %}
+        <tr><th>{{ item.label }}</th><td>{{ item.value }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section class="card">
+  <h3>Generated Exercise Quality</h3>
+  <table>
+    <tbody>
+      <tr><th>Knowledge alignment</th><td>{{ quality_stats.knowledge_alignment|default:'-' }}</td></tr>
+      <tr><th>Difficulty appropriateness</th><td>{{ quality_stats.difficulty_appropriateness|default:'-' }}</td></tr>
+      <tr><th>Structural completeness</th><td>{{ quality_stats.structural_completeness|default:'-' }}</td></tr>
+      <tr><th>Novelty</th><td>{{ quality_stats.novelty|default:'-' }}</td></tr>
+      <tr><th>Overall mean</th><td>{{ quality_stats.overall_mean|default:'-' }}</td></tr>
+    </tbody>
+  </table>
+</section>
+<section class="card">
+  <h3>Learning Support Results</h3>
+  <table>
+    <tbody>
+      {% for item in learning_stats %}
+        <tr><th>{{ item.label }}</th><td>{{ item.value }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section class="card">
+  <h3>Questionnaire Results</h3>
+  <table>
+    <thead><tr><th>Item</th><th>Mean</th><th>SD</th></tr></thead>
+    <tbody>
+      {% for row in questionnaire_rows %}
+        <tr><td>{{ row.label }}</td><td>{{ row.mean|default:'-' }}</td><td>{{ row.sd|default:'-' }}</td></tr>
+      {% empty %}
+        <tr><td colspan="3">No questionnaire data yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section class="card">
+  <h3>Representative Case</h3>
+  {% if case_session %}
+    <p><strong>Participant:</strong> {{ case_session.participant_code }} | <strong>Profile:</strong> {{ case_session.prompt_profile.name }}</p>
+    <table>
+      <thead><tr><th>Round</th><th>Focus</th><th>Learner result</th><th>System action</th></tr></thead>
+      <tbody>
+        {% for turn in case_session.turns.all %}
+          <tr>
+            <td>{{ turn.round_number }}</td>
+            <td>{{ turn.generated_focus }}</td>
+            <td>{{ turn.result_label }}</td>
+            <td>{{ turn.system_action }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No completed learning session is available yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

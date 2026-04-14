@@ -1,0 +1,84 @@
+{% extends "lab/base.html" %}
+{% block title %}Learning Session{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h2>Learning Session: {{ session.participant_code }}</h2>
+    <p>Profile: {{ session.prompt_profile.name }} | Target turns: {{ session.target_turns }} | Status: {{ session.status }}</p>
+  </div>
+  <a class="button secondary" href="{% url 'learning_lab' %}">Back</a>
+</section>
+{% if current_turn and session.status == 'active' %}
+  <section class="card">
+    <h3>Current turn: Round {{ current_turn.round_number }}</h3>
+    <p><strong>Focus:</strong> {{ current_turn.generated_focus }}</p>
+    <p><strong>Difficulty:</strong> {{ current_turn.difficulty_used }}</p>
+    <pre>{{ current_turn.generated_question }}</pre>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="button" type="submit">Submit answer</button>
+    </form>
+  </section>
+{% elif session.status == 'completed' and not session.questionnaire %}
+  <section class="card">
+    <p>This session is complete. Please submit the questionnaire.</p>
+    <a class="button" href="{% url 'learning_lab_questionnaire' session.pk %}">Open questionnaire</a>
+  </section>
+{% endif %}
+<section class="card">
+  <h3>Session history</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Round</th>
+        <th>Focus</th>
+        <th>Difficulty</th>
+        <th>Result</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for turn in turns %}
+        <tr>
+          <td>{{ turn.round_number }}</td>
+          <td>{{ turn.generated_focus }}</td>
+          <td>{{ turn.difficulty_used }}</td>
+          <td>{{ turn.result_label }}</td>
+          <td>{{ turn.system_action }}</td>
+        </tr>
+        <tr>
+          <td colspan="5">
+            <details>
+              <summary>Show question and grading</summary>
+              <pre>{{ turn.generated_question }}</pre>
+              {% if turn.learner_answer %}
+                <h4>Learner answer</h4>
+                <pre>{{ turn.learner_answer }}</pre>
+              {% endif %}
+              <table>
+                <thead><tr><th>#</th><th>Input</th><th>Expected</th><th>Learner</th><th>Correct</th></tr></thead>
+                <tbody>
+                  {% for grade in turn.grades.all %}
+                    <tr>
+                      <td>{{ grade.case_order }}</td>
+                      <td><pre>{{ grade.test_input }}</pre></td>
+                      <td><pre>{{ grade.expected_output }}</pre></td>
+                      <td><pre>{{ grade.learner_output }}</pre></td>
+                      <td>{{ grade.is_correct }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="5">No test cases stored.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </details>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">No turns generated yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PromptLab{% endblock %}</title>
+  <link rel="stylesheet" href="/static/lab/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1><a href="{% url 'home' %}">PromptLab Rebuild</a></h1>
+      <nav>
+        <a href="{% url 'prompt_settings' %}">Prompt Settings</a>
+        <a href="{% url 'run_lab' %}">Run Lab</a>
+        <a href="{% url 'batch_lab' %}">Batch Lab</a>
+        <a href="{% url 'learning_lab' %}">Learning Lab</a>
+        <a href="{% url 'analysis' %}">Analysis</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

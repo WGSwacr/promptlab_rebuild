@@ -1,0 +1,17 @@
+{% extends "lab/base.html" %}
+{% block title %}Questionnaire{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h2>Questionnaire for {{ session.participant_code }}</h2>
+    <p>Use a 1–5 scale for Q1–Q10.</p>
+  </div>
+</section>
+<section class="card">
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="button" type="submit">Submit questionnaire</button>
+  </form>
+</section>
+{% endblock %}

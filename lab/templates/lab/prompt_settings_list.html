@@ -1,0 +1,42 @@
+{% extends "lab/base.html" %}
+{% block title %}Prompt Settings{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h2>Prompt Settings</h2>
+    <p>Create, edit, copy, and review prompt profiles.</p>
+  </div>
+  <a class="button" href="{% url 'prompt_profile_create' %}">New profile</a>
+</section>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>System prompt</th>
+      <th>Task instruction</th>
+      <th>Difficulty presets</th>
+      <th>Style presets</th>
+      <th>Updated</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for profile in profiles %}
+      <tr>
+        <td>{{ profile.name }}</td>
+        <td>{{ profile.system_prompt.name }}</td>
+        <td>{{ profile.task_instruction.name }}</td>
+        <td>{% if profile.difficulty_names %}{{ profile.difficulty_names|join:", " }}{% else %}<span class="muted">None</span>{% endif %}</td>
+        <td>{% if profile.style_names %}{{ profile.style_names|join:", " }}{% else %}<span class="muted">None</span>{% endif %}</td>
+        <td>{{ profile.updated_at }}</td>
+        <td>
+          <a href="{% url 'prompt_profile_edit' profile.pk %}">Edit</a>
+          <a href="{% url 'prompt_profile_copy' profile.pk %}">Copy</a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7">No profiles yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,168 @@
+{% extends "lab/base.html" %}
+{% block title %}Prompt Profile{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h2>{% if profile %}Edit{% else %}Create{% endif %} Prompt Profile</h2>
+    <p>Manage the profile, select reusable prompts and presets, generate the baseline, and preview the assembled prompt.</p>
+  </div>
+  <a class="button secondary" href="{% url 'prompt_settings' %}">Back</a>
+</section>
+
+<form method="post" class="stack gap-lg">
+  {% csrf_token %}
+
+  <section class="card">
+    <h3>Profile information</h3>
+    {{ form.non_field_errors }}
+    <div class="grid two-col">
+      <div>
+        <p>{{ form.name.label_tag }} {{ form.name }}</p>
+        {{ form.name.errors }}
+      </div>
+      <div>
+        <p>{{ form.description.label_tag }} {{ form.description }}</p>
+        {{ form.description.errors }}
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Prompt configuration</h3>
+    <div class="grid two-col">
+      <div>
+        <p>{{ form.system_prompt.label_tag }} {{ form.system_prompt }}</p>
+        {{ form.system_prompt.errors }}
+        {% if selected_system %}
+          <div class="preview-box">
+            <strong>Selected system prompt:</strong>
+            <div class="muted">{{ selected_system.name }}</div>
+            <pre>{{ selected_system.text }}</pre>
+          </div>
+        {% endif %}
+      </div>
+      <div>
+        <p>{{ form.task_instruction.label_tag }} {{ form.task_instruction }}</p>
+        {{ form.task_instruction.errors }}
+        {% if selected_task %}
+          <div class="preview-box">
+            <strong>Selected task instruction:</strong>
+            <div class="muted">{{ selected_task.name }}</div>
+            <pre>{{ selected_task.text }}</pre>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="grid two-col">
+      <div class="subcard">
+        <h4>Add a new system prompt</h4>
+        {{ system_form.non_field_errors }}
+        <p>{{ system_form.name.label_tag }} {{ system_form.name }}</p>
+        {{ system_form.name.errors }}
+        <p>{{ system_form.text.label_tag }} {{ system_form.text }}</p>
+        {{ system_form.text.errors }}
+        <button class="button secondary" type="submit" name="action" value="add_system_prompt">Add system prompt</button>
+      </div>
+      <div class="subcard">
+        <h4>Add a new task instruction</h4>
+        {{ task_form.non_field_errors }}
+        <p>{{ task_form.name.label_tag }} {{ task_form.name }}</p>
+        {{ task_form.name.errors }}
+        <p>{{ task_form.text.label_tag }} {{ task_form.text }}</p>
+        {{ task_form.text.errors }}
+        <button class="button secondary" type="submit" name="action" value="add_task_instruction">Add task instruction</button>
+      </div>
+    </div>
+
+    <p>{{ form.curriculum_text.label_tag }} {{ form.curriculum_text }}</p>
+    {{ form.curriculum_text.errors }}
+    <p>{{ form.seed_problem_text.label_tag }} {{ form.seed_problem_text }}</p>
+    {{ form.seed_problem_text.errors }}
+    <p>{{ form.baseline_text.label_tag }} {{ form.baseline_text }}</p>
+    {{ form.baseline_text.errors }}
+    <div class="button-row">
+      <button class="button secondary" type="submit" name="action" value="generate_baseline">Generate baseline text</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Difficulty presets</h3>
+    <p class="muted">Select one or more difficulty presets. In Run Lab and Batch Lab, the system will randomly choose one of the selected presets for each run.</p>
+    <p>{{ form.difficulty_presets.label_tag }} {{ form.difficulty_presets }}</p>
+    {{ form.difficulty_presets.errors }}
+    {% if selected_difficulties %}
+      <div class="subcard">
+        <h4>Selected difficulty presets</h4>
+        {% for preset in selected_difficulties %}
+          <div class="preset-item">
+            <strong>{{ preset.name }}</strong>
+            {% if preset.description %}<div class="muted">{{ preset.description }}</div>{% endif %}
+            <pre>{{ preset.instruction_text }}</pre>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <div class="subcard">
+      <h4>Add a new difficulty preset</h4>
+      {{ difficulty_form.non_field_errors }}
+      <p>{{ difficulty_form.name.label_tag }} {{ difficulty_form.name }}</p>
+      {{ difficulty_form.name.errors }}
+      <p>{{ difficulty_form.description.label_tag }} {{ difficulty_form.description }}</p>
+      {{ difficulty_form.description.errors }}
+      <p>{{ difficulty_form.instruction_text.label_tag }} {{ difficulty_form.instruction_text }}</p>
+      {{ difficulty_form.instruction_text.errors }}
+      <button class="button secondary" type="submit" name="action" value="add_difficulty_preset">Add difficulty preset</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Style presets</h3>
+    <p class="muted">Select one or more style presets. All selected styles will be applied together when a question is generated.</p>
+    <p>{{ form.style_presets.label_tag }} {{ form.style_presets }}</p>
+    {{ form.style_presets.errors }}
+    {% if selected_styles %}
+      <div class="subcard">
+        <h4>Selected style presets</h4>
+        {% for preset in selected_styles %}
+          <div class="preset-item">
+            <strong>{{ preset.name }}</strong>
+            {% if preset.description %}<div class="muted">{{ preset.description }}</div>{% endif %}
+            <pre>{{ preset.instruction_text }}</pre>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <div class="subcard">
+      <h4>Add a new style preset</h4>
+      {{ style_form.non_field_errors }}
+      <p>{{ style_form.name.label_tag }} {{ style_form.name }}</p>
+      {{ style_form.name.errors }}
+      <p>{{ style_form.description.label_tag }} {{ style_form.description }}</p>
+      {{ style_form.description.errors }}
+      <p>{{ style_form.instruction_text.label_tag }} {{ style_form.instruction_text }}</p>
+      {{ style_form.instruction_text.errors }}
+      <button class="button secondary" type="submit" name="action" value="add_style_preset">Add style preset</button>
+    </div>
+  </section>
+
+  <div class="button-row">
+    <button class="button" type="submit" name="action" value="save_profile">Save profile</button>
+  </div>
+</form>
+
+<section class="card">
+  <h3>Assembled prompt preview</h3>
+  <p class="muted">This preview uses the current form content. If multiple difficulty presets are selected, the preview shows the first one, while actual runs choose one difficulty preset at random.</p>
+  {% if assembled_prompt %}
+    <pre>{{ assembled_prompt }}</pre>
+  {% else %}
+    <p class="muted">Select a system prompt and task instruction, then fill in Curriculum Text and Seed Problem Text to preview the assembled prompt.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>About the old “is_default” and “delete” fields</h3>
+  <p class="muted">They were part of the earlier inline-form design. In this rebuilt page they are removed. You now select reusable presets from the preset library, and you can add new presets directly on this page.</p>
+</section>
+{% endblock %}

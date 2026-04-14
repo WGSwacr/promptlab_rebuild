@@ -1,0 +1,48 @@
+{% extends "lab/base.html" %}
+{% block title %}Run Lab{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h2>Run Lab</h2>
+    <p>Select one profile, run it once, and store the result.</p>
+  </div>
+</section>
+<div class="grid two-col">
+  <section class="card">
+    <h3>Single run form</h3>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="button" type="submit">Run</button>
+    </form>
+  </section>
+  <section class="card">
+    <h3>Run history preview</h3>
+    {% if current_run %}
+      <p><strong>{{ current_run.name }}</strong></p>
+      <p>Profile: {{ current_run.prompt_profile.name }}</p>
+      <p>Parse success: {{ current_run.parse_success }}</p>
+      <p>Response time: {{ current_run.response_time_ms }} ms</p>
+      {% if current_run.error_message %}<p>Error: {{ current_run.error_message }}</p>{% endif %}
+      <h4>Raw response</h4>
+      <pre>{{ current_run.raw_response }}</pre>
+      <h4>Structured output</h4>
+      <pre>{{ current_run.structured_output|pprint }}</pre>
+      <div class="pagination">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+      </div>
+      <hr>
+      <h4>Add manual review</h4>
+      <form method="post" action="{% url 'experiment_review_create' current_run.pk %}">
+        {% csrf_token %}
+        {{ review_form.as_p }}
+        <button class="button secondary" type="submit">Save review</button>
+      </form>
+    {% else %}
+      <p>No single runs yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

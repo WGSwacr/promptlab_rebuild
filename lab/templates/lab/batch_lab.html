@@ -1,0 +1,56 @@
+{% extends "lab/base.html" %}
+{% block title %}Batch Lab{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h2>Batch Lab</h2>
+    <p>Run one selected profile repeatedly and review results by batch group.</p>
+  </div>
+</section>
+<div class="grid two-col">
+  <section class="card">
+    <h3>Create batch group</h3>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="button" type="submit">Run batch</button>
+    </form>
+    <h4>Existing batch groups</h4>
+    <ul>
+      {% for group in groups %}
+        <li><a href="?group={{ group.pk }}">{{ group.name }}</a> ({{ group.status }})</li>
+      {% empty %}
+        <li>No batch groups yet.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  <section class="card">
+    <h3>Batch result preview</h3>
+    {% if selected_group %}
+      <p><strong>{{ selected_group.name }}</strong></p>
+      <p>Profile: {{ selected_group.prompt_profile.name }}</p>
+      <p>Repetitions: {{ selected_group.repetitions }}</p>
+      <p>Status: {{ selected_group.status }}</p>
+      {% if current_run %}
+        <p><strong>Viewing:</strong> {{ current_run.name }}</p>
+        <p>Parse success: {{ current_run.parse_success }}</p>
+        <p>Response time: {{ current_run.response_time_ms }} ms</p>
+        {% if current_run.error_message %}<p>Error: {{ current_run.error_message }}</p>{% endif %}
+        <h4>Raw response</h4>
+        <pre>{{ current_run.raw_response }}</pre>
+        <h4>Structured output</h4>
+        <pre>{{ current_run.structured_output|pprint }}</pre>
+        <div class="pagination">
+          {% if page_obj.has_previous %}<a href="?group={{ selected_group.pk }}&page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+          <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+          {% if page_obj.has_next %}<a href="?group={{ selected_group.pk }}&page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+        </div>
+      {% else %}
+        <p>No runs saved for this batch group.</p>
+      {% endif %}
+    {% else %}
+      <p>Select a batch group to inspect its runs.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
