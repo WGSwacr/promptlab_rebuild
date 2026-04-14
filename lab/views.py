@@ -61,6 +61,10 @@ def _selected_single(form, field_name, model_cls):
         raw_id = form.data.get(field_name)
         if raw_id:
             return model_cls.objects.filter(pk=raw_id).first()
+    raw_id = form.initial.get(field_name) if hasattr(form, 'initial') else None
+    if raw_id:
+        raw_id = getattr(raw_id, 'pk', raw_id)
+        return model_cls.objects.filter(pk=raw_id).first()
     if form.instance and getattr(form.instance, 'pk', None):
         return getattr(form.instance, field_name, None)
     return None
@@ -72,6 +76,10 @@ def _selected_many(form, field_name, model_cls):
         if ids:
             return list(model_cls.objects.filter(pk__in=ids).order_by('name'))
         return []
+    initial_ids = form.initial.get(field_name) if hasattr(form, 'initial') else None
+    if initial_ids:
+        normalized_ids = [str(getattr(value, 'pk', value)) for value in initial_ids]
+        return list(model_cls.objects.filter(pk__in=normalized_ids).order_by('name'))
     if form.instance and getattr(form.instance, 'pk', None):
         return list(getattr(form.instance, field_name).all())
     return []
@@ -82,9 +90,14 @@ def _preview_prompt_from_form(form):
     selected_task = _selected_single(form, 'task_instruction', TaskInstruction)
     difficulty_presets = _selected_many(form, 'difficulty_presets', DifficultyPreset)
     style_presets = _selected_many(form, 'style_presets', StylePreset)
-    curriculum_text = form.data.get('curriculum_text', '') if form.is_bound else getattr(form.instance, 'curriculum_text', '')
-    seed_problem_text = form.data.get('seed_problem_text', '') if form.is_bound else getattr(form.instance, 'seed_problem_text', '')
-    baseline_text = form.data.get('baseline_text', '') if form.is_bound else getattr(form.instance, 'baseline_text', '')
+    if form.is_bound:
+        curriculum_text = form.data.get('curriculum_text', '')
+        seed_problem_text = form.data.get('seed_problem_text', '')
+        baseline_text = form.data.get('baseline_text', '')
+    else:
+        curriculum_text = form.initial.get('curriculum_text', getattr(form.instance, 'curriculum_text', ''))
+        seed_problem_text = form.initial.get('seed_problem_text', getattr(form.instance, 'seed_problem_text', ''))
+        baseline_text = form.initial.get('baseline_text', getattr(form.instance, 'baseline_text', ''))
     if not (selected_system and selected_task and curriculum_text.strip() and seed_problem_text.strip()):
         return ''
     preview_profile = SimpleNamespace(
@@ -135,6 +148,20 @@ def _build_profile_snapshot_data(request):
         data.setlist(field, [str(value) for value in values])
 
     return data
+
+
+def _profile_initial_from_data(data):
+    return {
+        'name': data.get('name', ''),
+        'description': data.get('description', ''),
+        'system_prompt': data.get('system_prompt', ''),
+        'task_instruction': data.get('task_instruction', ''),
+        'curriculum_text': data.get('curriculum_text', ''),
+        'seed_problem_text': data.get('seed_problem_text', ''),
+        'baseline_text': data.get('baseline_text', ''),
+        'difficulty_presets': data.getlist('difficulty_presets'),
+        'style_presets': data.getlist('style_presets'),
+    }
 
 
 def _render_profile_form(request, form, profile=None, *, system_form=None, task_form=None, difficulty_form=None, style_form=None):
@@ -220,15 +247,32 @@ def _generate_baseline_into_form(post_data, *, profile=None):
 
 
 def _handle_prompt_profile_page(request, profile=None):
-    form = PromptProfileForm(request.POST or None, instance=profile)
-    system_form = SystemPromptCreateForm(request.POST or None, prefix='system_library')
-    task_form = TaskInstructionCreateForm(request.POST or None, prefix='task_library')
-    difficulty_form = DifficultyPresetCreateForm(request.POST or None, prefix='difficulty_library')
-    style_form = StylePresetCreateForm(request.POST or None, prefix='style_library')
+    action = request.POST.get('action', 'save_profile') if request.method == 'POST' else None
+    profile_snapshot = _build_profile_snapshot_data(request) if request.method == 'POST' else None
+    if action in {'save_profile', 'generate_baseline'}:
+        form = PromptProfileForm(request.POST or None, instance=profile)
+    elif profile_snapshot is not None:
+        form = PromptProfileForm(instance=profile, initial=_profile_initial_from_data(profile_snapshot))
+    else:
+        form = PromptProfileForm(instance=profile)
+    system_form = SystemPromptCreateForm(
+        request.POST if action == 'add_system_prompt' else None,
+        prefix='system_library',
+    )
+    task_form = TaskInstructionCreateForm(
+        request.POST if action == 'add_task_instruction' else None,
+        prefix='task_library',
+    )
+    difficulty_form = DifficultyPresetCreateForm(
+        request.POST if action == 'add_difficulty_preset' else None,
+        prefix='difficulty_library',
+    )
+    style_form = StylePresetCreateForm(
+        request.POST if action == 'add_style_preset' else None,
+        prefix='style_library',
+    )
 
     if request.method == 'POST':
-        action = request.POST.get('action', 'save_profile')
-
         if action == 'save_profile':
             if form.is_valid():
                 saved_profile = form.save()
@@ -247,9 +291,9 @@ def _handle_prompt_profile_page(request, profile=None):
         elif action == 'add_system_prompt':
             if system_form.is_valid():
                 prompt = system_form.save()
-                new_data = _build_profile_snapshot_data(request)
+                new_data = profile_snapshot.copy()
                 new_data['system_prompt'] = str(prompt.pk)
-                form = PromptProfileForm(new_data, instance=profile)
+                form = PromptProfileForm(instance=profile, initial=_profile_initial_from_data(new_data))
                 system_form = SystemPromptCreateForm(prefix='system_library')
                 messages.success(request, 'System prompt added and selected.')
             else:
@@ -258,9 +302,9 @@ def _handle_prompt_profile_page(request, profile=None):
         elif action == 'add_task_instruction':
             if task_form.is_valid():
                 task = task_form.save()
-                new_data = _build_profile_snapshot_data(request)
+                new_data = profile_snapshot.copy()
                 new_data['task_instruction'] = str(task.pk)
-                form = PromptProfileForm(new_data, instance=profile)
+                form = PromptProfileForm(instance=profile, initial=_profile_initial_from_data(new_data))
                 task_form = TaskInstructionCreateForm(prefix='task_library')
                 messages.success(request, 'Task instruction added and selected.')
             else:
@@ -269,11 +313,11 @@ def _handle_prompt_profile_page(request, profile=None):
         elif action == 'add_difficulty_preset':
             if difficulty_form.is_valid():
                 preset = difficulty_form.save()
-                new_data = _build_profile_snapshot_data(request)
+                new_data = profile_snapshot.copy()
                 selected_ids = new_data.getlist('difficulty_presets')
                 if str(preset.pk) not in selected_ids:
                     new_data.setlist('difficulty_presets', selected_ids + [str(preset.pk)])
-                form = PromptProfileForm(new_data, instance=profile)
+                form = PromptProfileForm(instance=profile, initial=_profile_initial_from_data(new_data))
                 difficulty_form = DifficultyPresetCreateForm(prefix='difficulty_library')
                 messages.success(request, 'Difficulty preset added and selected.')
             else:
@@ -282,11 +326,11 @@ def _handle_prompt_profile_page(request, profile=None):
         elif action == 'add_style_preset':
             if style_form.is_valid():
                 preset = style_form.save()
-                new_data = _build_profile_snapshot_data(request)
+                new_data = profile_snapshot.copy()
                 selected_ids = new_data.getlist('style_presets')
                 if str(preset.pk) not in selected_ids:
                     new_data.setlist('style_presets', selected_ids + [str(preset.pk)])
-                form = PromptProfileForm(new_data, instance=profile)
+                form = PromptProfileForm(instance=profile, initial=_profile_initial_from_data(new_data))
                 style_form = StylePresetCreateForm(prefix='style_library')
                 messages.success(request, 'Style preset added and selected.')
             else:
@@ -449,7 +493,7 @@ def learning_lab_session(request, pk):
             maybe_advance_session(session, graded_turn, next_difficulty)
             if session.status == LearningSession.STATUS_COMPLETED:
                 messages.success(request, 'Learning session completed. Please fill in the questionnaire.')
-                return redirect('learning_lab_questionnaire', pk=session.pk)
+                return redirect('learning_lab_session', pk=session.pk)
             messages.success(request, 'Answer submitted. The next turn has been generated.')
             return redirect('learning_lab_session', pk=session.pk)
     else:
