@@ -1,6 +1,9 @@
+import json
+import random
 from types import SimpleNamespace
 
 from django.contrib import messages
+from django.http import QueryDict
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -91,12 +94,47 @@ def _preview_prompt_from_form(form):
         seed_problem_text=seed_problem_text,
         baseline_text=baseline_text,
     )
-    difficulty_preview = difficulty_presets[0] if difficulty_presets else None
+    difficulty_preview = random.choice(difficulty_presets) if difficulty_presets else None
     return build_assembled_prompt(
         preview_profile,
         difficulty_preset=difficulty_preview,
         style_presets=style_presets,
     )
+
+
+def _build_profile_snapshot_data(request):
+    snapshot_raw = request.POST.get('profile_snapshot', '').strip()
+    if not snapshot_raw:
+        return QueryDict('', mutable=True)
+
+    try:
+        snapshot = json.loads(snapshot_raw)
+    except json.JSONDecodeError:
+        return QueryDict('', mutable=True)
+
+    data = QueryDict('', mutable=True)
+    single_fields = [
+        'name',
+        'description',
+        'system_prompt',
+        'task_instruction',
+        'curriculum_text',
+        'seed_problem_text',
+        'baseline_text',
+    ]
+    list_fields = ['difficulty_presets', 'style_presets']
+
+    for field in single_fields:
+        value = snapshot.get(field, '')
+        if value is None:
+            value = ''
+        data[field] = str(value)
+
+    for field in list_fields:
+        values = snapshot.get(field, []) or []
+        data.setlist(field, [str(value) for value in values])
+
+    return data
 
 
 def _render_profile_form(request, form, profile=None, *, system_form=None, task_form=None, difficulty_form=None, style_form=None):
@@ -109,6 +147,32 @@ def _render_profile_form(request, form, profile=None, *, system_form=None, task_
     selected_difficulties = _selected_many(form, 'difficulty_presets', DifficultyPreset)
     selected_styles = _selected_many(form, 'style_presets', StylePreset)
     assembled_prompt = _preview_prompt_from_form(form)
+    system_prompt_choices = [
+        {'id': prompt.pk, 'name': prompt.name, 'text': prompt.text}
+        for prompt in SystemPrompt.objects.all()
+    ]
+    task_instruction_choices = [
+        {'id': task.pk, 'name': task.name, 'text': task.text}
+        for task in TaskInstruction.objects.all()
+    ]
+    difficulty_preset_choices = [
+        {
+            'id': preset.pk,
+            'name': preset.name,
+            'description': preset.description,
+            'instruction_text': preset.instruction_text,
+        }
+        for preset in DifficultyPreset.objects.all()
+    ]
+    style_preset_choices = [
+        {
+            'id': preset.pk,
+            'name': preset.name,
+            'description': preset.description,
+            'instruction_text': preset.instruction_text,
+        }
+        for preset in StylePreset.objects.all()
+    ]
     return render(
         request,
         'lab/prompt_profile_form.html',
@@ -124,6 +188,10 @@ def _render_profile_form(request, form, profile=None, *, system_form=None, task_
             'task_form': task_form,
             'difficulty_form': difficulty_form,
             'style_form': style_form,
+            'system_prompt_choices': system_prompt_choices,
+            'task_instruction_choices': task_instruction_choices,
+            'difficulty_preset_choices': difficulty_preset_choices,
+            'style_preset_choices': style_preset_choices,
         },
     )
 
@@ -179,7 +247,7 @@ def _handle_prompt_profile_page(request, profile=None):
         elif action == 'add_system_prompt':
             if system_form.is_valid():
                 prompt = system_form.save()
-                new_data = request.POST.copy()
+                new_data = _build_profile_snapshot_data(request)
                 new_data['system_prompt'] = str(prompt.pk)
                 form = PromptProfileForm(new_data, instance=profile)
                 system_form = SystemPromptCreateForm(prefix='system_library')
@@ -190,7 +258,7 @@ def _handle_prompt_profile_page(request, profile=None):
         elif action == 'add_task_instruction':
             if task_form.is_valid():
                 task = task_form.save()
-                new_data = request.POST.copy()
+                new_data = _build_profile_snapshot_data(request)
                 new_data['task_instruction'] = str(task.pk)
                 form = PromptProfileForm(new_data, instance=profile)
                 task_form = TaskInstructionCreateForm(prefix='task_library')
@@ -201,7 +269,7 @@ def _handle_prompt_profile_page(request, profile=None):
         elif action == 'add_difficulty_preset':
             if difficulty_form.is_valid():
                 preset = difficulty_form.save()
-                new_data = request.POST.copy()
+                new_data = _build_profile_snapshot_data(request)
                 selected_ids = new_data.getlist('difficulty_presets')
                 if str(preset.pk) not in selected_ids:
                     new_data.setlist('difficulty_presets', selected_ids + [str(preset.pk)])
@@ -214,7 +282,7 @@ def _handle_prompt_profile_page(request, profile=None):
         elif action == 'add_style_preset':
             if style_form.is_valid():
                 preset = style_form.save()
-                new_data = request.POST.copy()
+                new_data = _build_profile_snapshot_data(request)
                 selected_ids = new_data.getlist('style_presets')
                 if str(preset.pk) not in selected_ids:
                     new_data.setlist('style_presets', selected_ids + [str(preset.pk)])

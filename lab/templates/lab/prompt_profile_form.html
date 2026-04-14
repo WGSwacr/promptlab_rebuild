@@ -9,7 +9,7 @@
   <a class="button secondary" href="{% url 'prompt_settings' %}">Back</a>
 </section>
 
-<form method="post" class="stack gap-lg">
+<form method="post" class="stack gap-lg" id="prompt-profile-form">
   {% csrf_token %}
 
   <section class="card">
@@ -33,45 +33,20 @@
       <div>
         <p>{{ form.system_prompt.label_tag }} {{ form.system_prompt }}</p>
         {{ form.system_prompt.errors }}
-        {% if selected_system %}
-          <div class="preview-box">
-            <strong>Selected system prompt:</strong>
-            <div class="muted">{{ selected_system.name }}</div>
-            <pre>{{ selected_system.text }}</pre>
-          </div>
-        {% endif %}
+        <div class="preview-box" id="system-prompt-preview" {% if not selected_system %}hidden{% endif %}>
+          <strong>Selected system prompt:</strong>
+          <div class="muted" data-preview-name>{% if selected_system %}{{ selected_system.name }}{% endif %}</div>
+          <pre data-preview-text>{% if selected_system %}{{ selected_system.text }}{% endif %}</pre>
+        </div>
       </div>
       <div>
         <p>{{ form.task_instruction.label_tag }} {{ form.task_instruction }}</p>
         {{ form.task_instruction.errors }}
-        {% if selected_task %}
-          <div class="preview-box">
-            <strong>Selected task instruction:</strong>
-            <div class="muted">{{ selected_task.name }}</div>
-            <pre>{{ selected_task.text }}</pre>
-          </div>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="grid two-col">
-      <div class="subcard">
-        <h4>Add a new system prompt</h4>
-        {{ system_form.non_field_errors }}
-        <p>{{ system_form.name.label_tag }} {{ system_form.name }}</p>
-        {{ system_form.name.errors }}
-        <p>{{ system_form.text.label_tag }} {{ system_form.text }}</p>
-        {{ system_form.text.errors }}
-        <button class="button secondary" type="submit" name="action" value="add_system_prompt">Add system prompt</button>
-      </div>
-      <div class="subcard">
-        <h4>Add a new task instruction</h4>
-        {{ task_form.non_field_errors }}
-        <p>{{ task_form.name.label_tag }} {{ task_form.name }}</p>
-        {{ task_form.name.errors }}
-        <p>{{ task_form.text.label_tag }} {{ task_form.text }}</p>
-        {{ task_form.text.errors }}
-        <button class="button secondary" type="submit" name="action" value="add_task_instruction">Add task instruction</button>
+        <div class="preview-box" id="task-instruction-preview" {% if not selected_task %}hidden{% endif %}>
+          <strong>Selected task instruction:</strong>
+          <div class="muted" data-preview-name>{% if selected_task %}{{ selected_task.name }}{% endif %}</div>
+          <pre data-preview-text>{% if selected_task %}{{ selected_task.text }}{% endif %}</pre>
+        </div>
       </div>
     </div>
 
@@ -88,12 +63,20 @@
 
   <section class="card">
     <h3>Difficulty presets</h3>
-    <p class="muted">Select one or more difficulty presets. In Run Lab and Batch Lab, the system will randomly choose one of the selected presets for each run.</p>
-    <p>{{ form.difficulty_presets.label_tag }} {{ form.difficulty_presets }}</p>
+    <p class="muted">You can select one or more difficulty presets. The saved profile keeps all selected presets, and each generated prompt will randomly use one of them.</p>
+    <p>{{ form.difficulty_presets.label_tag }}</p>
+    <div hidden>
+      {{ form.difficulty_presets }}
+    </div>
+    <details class="subcard" id="difficulty-presets-dropdown">
+      <summary id="difficulty-presets-summary">Select difficulty presets</summary>
+      <div id="difficulty-presets-options"></div>
+    </details>
     {{ form.difficulty_presets.errors }}
-    {% if selected_difficulties %}
-      <div class="subcard">
-        <h4>Selected difficulty presets</h4>
+    <div class="subcard" id="difficulty-presets-preview" {% if not selected_difficulties %}hidden{% endif %}>
+      <h4>Selected difficulty presets</h4>
+      <p class="muted">One of the selected presets below will be chosen at random when the final prompt is assembled for a run.</p>
+      <div data-preview-list>
         {% for preset in selected_difficulties %}
           <div class="preset-item">
             <strong>{{ preset.name }}</strong>
@@ -102,28 +85,24 @@
           </div>
         {% endfor %}
       </div>
-    {% endif %}
-    <div class="subcard">
-      <h4>Add a new difficulty preset</h4>
-      {{ difficulty_form.non_field_errors }}
-      <p>{{ difficulty_form.name.label_tag }} {{ difficulty_form.name }}</p>
-      {{ difficulty_form.name.errors }}
-      <p>{{ difficulty_form.description.label_tag }} {{ difficulty_form.description }}</p>
-      {{ difficulty_form.description.errors }}
-      <p>{{ difficulty_form.instruction_text.label_tag }} {{ difficulty_form.instruction_text }}</p>
-      {{ difficulty_form.instruction_text.errors }}
-      <button class="button secondary" type="submit" name="action" value="add_difficulty_preset">Add difficulty preset</button>
     </div>
   </section>
 
   <section class="card">
     <h3>Style presets</h3>
-    <p class="muted">Select one or more style presets. All selected styles will be applied together when a question is generated.</p>
-    <p>{{ form.style_presets.label_tag }} {{ form.style_presets }}</p>
+    <p class="muted">You can select multiple style presets. All selected styles will be applied together when the prompt is generated.</p>
+    <p>{{ form.style_presets.label_tag }}</p>
+    <div hidden>
+      {{ form.style_presets }}
+    </div>
+    <details class="subcard" id="style-presets-dropdown">
+      <summary id="style-presets-summary">Select style presets</summary>
+      <div id="style-presets-options"></div>
+    </details>
     {{ form.style_presets.errors }}
-    {% if selected_styles %}
-      <div class="subcard">
-        <h4>Selected style presets</h4>
+    <div class="subcard" id="style-presets-preview" {% if not selected_styles %}hidden{% endif %}>
+      <h4>Selected style presets</h4>
+      <div data-preview-list>
         {% for preset in selected_styles %}
           <div class="preset-item">
             <strong>{{ preset.name }}</strong>
@@ -132,17 +111,6 @@
           </div>
         {% endfor %}
       </div>
-    {% endif %}
-    <div class="subcard">
-      <h4>Add a new style preset</h4>
-      {{ style_form.non_field_errors }}
-      <p>{{ style_form.name.label_tag }} {{ style_form.name }}</p>
-      {{ style_form.name.errors }}
-      <p>{{ style_form.description.label_tag }} {{ style_form.description }}</p>
-      {{ style_form.description.errors }}
-      <p>{{ style_form.instruction_text.label_tag }} {{ style_form.instruction_text }}</p>
-      {{ style_form.instruction_text.errors }}
-      <button class="button secondary" type="submit" name="action" value="add_style_preset">Add style preset</button>
     </div>
   </section>
 
@@ -152,8 +120,69 @@
 </form>
 
 <section class="card">
+  <h3>Preset Library</h3>
+  <p class="muted">These add-new forms are independent from the profile form. Submitting them only creates reusable entries in the corresponding table and keeps your current profile edits on the page.</p>
+  <div class="grid two-col">
+    <form method="post" class="subcard prompt-library-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_system_prompt">
+      <input type="hidden" name="profile_snapshot" value="">
+      <h4>Add a new system prompt</h4>
+      {{ system_form.non_field_errors }}
+      <p>{{ system_form.name.label_tag }} {{ system_form.name }}</p>
+      {{ system_form.name.errors }}
+      <p>{{ system_form.text.label_tag }} {{ system_form.text }}</p>
+      {{ system_form.text.errors }}
+      <button class="button secondary" type="submit">Add system prompt</button>
+    </form>
+    <form method="post" class="subcard prompt-library-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_task_instruction">
+      <input type="hidden" name="profile_snapshot" value="">
+      <h4>Add a new task instruction</h4>
+      {{ task_form.non_field_errors }}
+      <p>{{ task_form.name.label_tag }} {{ task_form.name }}</p>
+      {{ task_form.name.errors }}
+      <p>{{ task_form.text.label_tag }} {{ task_form.text }}</p>
+      {{ task_form.text.errors }}
+      <button class="button secondary" type="submit">Add task instruction</button>
+    </form>
+  </div>
+  <div class="grid two-col">
+    <form method="post" class="subcard prompt-library-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_difficulty_preset">
+      <input type="hidden" name="profile_snapshot" value="">
+      <h4>Add a new difficulty preset</h4>
+      {{ difficulty_form.non_field_errors }}
+      <p>{{ difficulty_form.name.label_tag }} {{ difficulty_form.name }}</p>
+      {{ difficulty_form.name.errors }}
+      <p>{{ difficulty_form.description.label_tag }} {{ difficulty_form.description }}</p>
+      {{ difficulty_form.description.errors }}
+      <p>{{ difficulty_form.instruction_text.label_tag }} {{ difficulty_form.instruction_text }}</p>
+      {{ difficulty_form.instruction_text.errors }}
+      <button class="button secondary" type="submit">Add difficulty preset</button>
+    </form>
+    <form method="post" class="subcard prompt-library-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_style_preset">
+      <input type="hidden" name="profile_snapshot" value="">
+      <h4>Add a new style preset</h4>
+      {{ style_form.non_field_errors }}
+      <p>{{ style_form.name.label_tag }} {{ style_form.name }}</p>
+      {{ style_form.name.errors }}
+      <p>{{ style_form.description.label_tag }} {{ style_form.description }}</p>
+      {{ style_form.description.errors }}
+      <p>{{ style_form.instruction_text.label_tag }} {{ style_form.instruction_text }}</p>
+      {{ style_form.instruction_text.errors }}
+      <button class="button secondary" type="submit">Add style preset</button>
+    </form>
+  </div>
+</section>
+
+<section class="card">
   <h3>Assembled prompt preview</h3>
-  <p class="muted">This preview uses the current form content. If multiple difficulty presets are selected, the preview shows the first one, while actual runs choose one difficulty preset at random.</p>
+  <p class="muted">This preview uses the current form content. If multiple difficulty presets are selected, the preview will show one randomly chosen difficulty preset.</p>
   {% if assembled_prompt %}
     <pre>{{ assembled_prompt }}</pre>
   {% else %}
@@ -161,8 +190,215 @@
   {% endif %}
 </section>
 
-<section class="card">
-  <h3>About the old “is_default” and “delete” fields</h3>
-  <p class="muted">They were part of the earlier inline-form design. In this rebuilt page they are removed. You now select reusable presets from the preset library, and you can add new presets directly on this page.</p>
-</section>
+{{ system_prompt_choices|json_script:"system-prompt-choices" }}
+{{ task_instruction_choices|json_script:"task-instruction-choices" }}
+{{ difficulty_preset_choices|json_script:"difficulty-preset-choices" }}
+{{ style_preset_choices|json_script:"style-preset-choices" }}
+
+<script>
+  (() => {
+    const profileForm = document.getElementById('prompt-profile-form');
+    if (!profileForm) {
+      return;
+    }
+
+    const buildSnapshot = () => {
+      const data = {
+        name: '',
+        description: '',
+        system_prompt: '',
+        task_instruction: '',
+        curriculum_text: '',
+        seed_problem_text: '',
+        baseline_text: '',
+        difficulty_presets: [],
+        style_presets: [],
+      };
+      const formData = new FormData(profileForm);
+
+      Object.keys(data).forEach((key) => {
+        const values = formData.getAll(key);
+        data[key] = Array.isArray(data[key]) ? values : (values[0] || '');
+      });
+
+      return JSON.stringify(data);
+    };
+
+    document.querySelectorAll('.prompt-library-form').forEach((libraryForm) => {
+      libraryForm.addEventListener('submit', () => {
+        const snapshotField = libraryForm.querySelector('input[name="profile_snapshot"]');
+        if (snapshotField) {
+          snapshotField.value = buildSnapshot();
+        }
+      });
+    });
+
+    const createLookup = (scriptId) => {
+      const node = document.getElementById(scriptId);
+      if (!node) {
+        return new Map();
+      }
+      const rows = JSON.parse(node.textContent);
+      return new Map(rows.map((row) => [String(row.id), row]));
+    };
+
+    const bindPreview = (fieldName, previewId, lookup) => {
+      const select = profileForm.querySelector(`[name="${fieldName}"]`);
+      const preview = document.getElementById(previewId);
+      if (!select || !preview) {
+        return;
+      }
+
+      const nameNode = preview.querySelector('[data-preview-name]');
+      const textNode = preview.querySelector('[data-preview-text]');
+
+      const render = () => {
+        const item = lookup.get(select.value);
+        if (!item) {
+          preview.hidden = true;
+          if (nameNode) {
+            nameNode.textContent = '';
+          }
+          if (textNode) {
+            textNode.textContent = '';
+          }
+          return;
+        }
+
+        preview.hidden = false;
+        if (nameNode) {
+          nameNode.textContent = item.name || '';
+        }
+        if (textNode) {
+          textNode.textContent = item.text || '';
+        }
+      };
+
+      select.addEventListener('change', render);
+      render();
+    };
+
+    const bindMultiSelectDropdown = (config) => {
+      const select = profileForm.querySelector(`[name="${config.fieldName}"]`);
+      const optionsHost = document.getElementById(config.optionsId);
+      const summary = document.getElementById(config.summaryId);
+      const preview = document.getElementById(config.previewId);
+      if (!select || !optionsHost || !summary || !preview) {
+        return;
+      }
+
+      const previewList = preview.querySelector('[data-preview-list]');
+      const rows = Array.from(createLookup(config.scriptId).values());
+
+      const renderSummary = (selectedRows) => {
+        if (!selectedRows.length) {
+          summary.textContent = config.emptySummary;
+          return;
+        }
+        summary.textContent = selectedRows.map((row) => row.name).join(', ');
+      };
+
+      const renderPreview = (selectedRows) => {
+        if (!previewList) {
+          return;
+        }
+        if (!selectedRows.length) {
+          preview.hidden = true;
+          previewList.innerHTML = '';
+          return;
+        }
+
+        preview.hidden = false;
+        previewList.innerHTML = '';
+        selectedRows.forEach((row) => {
+          const item = document.createElement('div');
+          item.className = 'preset-item';
+
+          const title = document.createElement('strong');
+          title.textContent = row.name || '';
+          item.appendChild(title);
+
+          if (row.description) {
+            const description = document.createElement('div');
+            description.className = 'muted';
+            description.textContent = row.description;
+            item.appendChild(description);
+          }
+
+          const instruction = document.createElement('pre');
+          instruction.textContent = row.instruction_text || '';
+          item.appendChild(instruction);
+
+          previewList.appendChild(item);
+        });
+      };
+
+      const syncFromSelect = () => {
+        const selectedValues = new Set(Array.from(select.selectedOptions).map((option) => option.value));
+        optionsHost.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+          checkbox.checked = selectedValues.has(checkbox.value);
+        });
+        const selectedRows = rows.filter((row) => selectedValues.has(String(row.id)));
+        renderSummary(selectedRows);
+        renderPreview(selectedRows);
+      };
+
+      optionsHost.innerHTML = '';
+      rows.forEach((row) => {
+        const label = document.createElement('label');
+        label.className = 'preset-item';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = row.id;
+        label.appendChild(checkbox);
+
+        const title = document.createElement('strong');
+        title.textContent = row.name || '';
+        label.appendChild(title);
+
+        if (row.description) {
+          const description = document.createElement('div');
+          description.className = 'muted';
+          description.textContent = row.description;
+          label.appendChild(description);
+        }
+
+        optionsHost.appendChild(label);
+      });
+
+      optionsHost.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => {
+          const selectedValues = Array.from(optionsHost.querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
+          Array.from(select.options).forEach((option) => {
+            option.selected = selectedValues.includes(option.value);
+          });
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      });
+
+      select.addEventListener('change', syncFromSelect);
+      syncFromSelect();
+    };
+
+    bindPreview('system_prompt', 'system-prompt-preview', createLookup('system-prompt-choices'));
+    bindPreview('task_instruction', 'task-instruction-preview', createLookup('task-instruction-choices'));
+    bindMultiSelectDropdown({
+      fieldName: 'difficulty_presets',
+      scriptId: 'difficulty-preset-choices',
+      optionsId: 'difficulty-presets-options',
+      summaryId: 'difficulty-presets-summary',
+      previewId: 'difficulty-presets-preview',
+      emptySummary: 'Select difficulty presets',
+    });
+    bindMultiSelectDropdown({
+      fieldName: 'style_presets',
+      scriptId: 'style-preset-choices',
+      optionsId: 'style-presets-options',
+      summaryId: 'style-presets-summary',
+      previewId: 'style-presets-preview',
+      emptySummary: 'Select style presets',
+    });
+  })();
+</script>
 {% endblock %}
