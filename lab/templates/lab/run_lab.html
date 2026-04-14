@@ -21,28 +21,84 @@
     {% if current_run %}
       <p><strong>{{ current_run.name }}</strong></p>
       <p>Profile: {{ current_run.prompt_profile.name }}</p>
+      <p>Model: {{ current_run.actual_model|default:'-' }}</p>
       <p>Parse success: {{ current_run.parse_success }}</p>
       <p>Response time: {{ current_run.response_time_ms }} ms</p>
       {% if current_run.error_message %}<p>Error: {{ current_run.error_message }}</p>{% endif %}
-      <h4>Raw response</h4>
-      <pre>{{ current_run.raw_response }}</pre>
-      <h4>Structured output</h4>
-      <pre>{{ current_run.structured_output|pprint }}</pre>
+      <div class="button-row">
+        <button class="button secondary toggle-active" type="button" data-viewer-tab="raw-run-{{ current_run.pk }}" aria-pressed="true">Raw response</button>
+        <button class="button secondary" type="button" data-viewer-tab="structured-run-{{ current_run.pk }}" aria-pressed="false">Structured output</button>
+        <button class="button secondary" type="button" data-viewer-tab="question-run-{{ current_run.pk }}" aria-pressed="false">Question view</button>
+      </div>
+      <div class="result-viewer" data-viewer="run-{{ current_run.pk }}">
+        <div class="result-view" data-view-panel="raw-run-{{ current_run.pk }}">
+          <pre>{{ current_run.raw_response }}</pre>
+        </div>
+        <div class="result-view" data-view-panel="structured-run-{{ current_run.pk }}" hidden>
+          <pre>{{ current_run.structured_output|pprint }}</pre>
+        </div>
+        <div class="result-view" data-view-panel="question-run-{{ current_run.pk }}" hidden>
+          <div class="subcard question-view-block">
+            <p><strong>Title:</strong> {{ current_run.structured_output.title|default:'-' }}</p>
+            <p><strong>Focus:</strong> {{ current_run.structured_output.focus|default:'-' }}</p>
+            <p><strong>Difficulty:</strong> {{ current_run.structured_output.difficulty|default:'-' }}</p>
+          </div>
+          <div class="subcard question-view-block">
+            <h4>Question</h4>
+            <pre>{{ current_run.structured_output.question|default:'No question generated.' }}</pre>
+          </div>
+          <div class="subcard question-view-block">
+            <h4>Tests</h4>
+            <table>
+              <thead><tr><th>#</th><th>Input</th><th>Expected output</th></tr></thead>
+              <tbody>
+                {% for test in current_run.structured_output.tests %}
+                  <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><pre>{{ test.input }}</pre></td>
+                    <td><pre>{{ test.output }}</pre></td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3">No test cases available.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
       <div class="pagination">
         {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
         <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
         {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
       </div>
-      <hr>
-      <h4>Add manual review</h4>
-      <form method="post" action="{% url 'experiment_review_create' current_run.pk %}">
-        {% csrf_token %}
-        {{ review_form.as_p }}
-        <button class="button secondary" type="submit">Save review</button>
-      </form>
     {% else %}
       <p>No single runs yet.</p>
     {% endif %}
   </section>
 </div>
+<script>
+  (() => {
+    const buttons = document.querySelectorAll('[data-viewer-tab]');
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const panelId = button.dataset.viewerTab;
+        const viewer = button.closest('.card');
+        if (!viewer) {
+          return;
+        }
+        viewer.querySelectorAll('[data-viewer-tab]').forEach((item) => item.classList.remove('toggle-active'));
+        viewer.querySelectorAll('[data-viewer-tab]').forEach((item) => item.setAttribute('aria-pressed', 'false'));
+        viewer.querySelectorAll('[data-view-panel]').forEach((panel) => {
+          panel.hidden = true;
+        });
+        button.classList.add('toggle-active');
+        button.setAttribute('aria-pressed', 'true');
+        const panel = viewer.querySelector(`[data-view-panel="${panelId}"]`);
+        if (panel) {
+          panel.hidden = false;
+        }
+      });
+    });
+  })();
+</script>
 {% endblock %}

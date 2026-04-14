@@ -77,6 +77,11 @@ body {
   background: #4b5563;
 }
 
+.button.toggle-active,
+.button[aria-pressed='true'] {
+  background: #1d4ed8;
+}
+
 .messages {
   margin-bottom: 1rem;
 }
@@ -132,3 +137,11 @@ input[type='text'], input[type='number'], select, textarea {
 }
 
 .stack.gap-lg > * { margin-bottom: 1rem; }
+
+.result-viewer {
+  margin-top: 1rem;
+}
+
+.question-view-block + .question-view-block {
+  margin-top: 1rem;
+}

@@ -1,5 +1,6 @@
 from django import forms
 
+from .services.model_catalog import get_model_choice_options
 from .models import (
     BatchGroup,
     DifficultyPreset,
@@ -83,18 +84,32 @@ class StylePresetCreateForm(forms.ModelForm):
 class RunLabForm(forms.Form):
     name = forms.CharField(max_length=120, required=False)
     prompt_profile = forms.ModelChoiceField(queryset=PromptProfile.objects.all())
+    selected_model = forms.ChoiceField(label='Model')
     seed_problem_override = forms.CharField(widget=forms.Textarea(attrs={'rows': 6}), required=False)
     baseline_override = forms.CharField(widget=forms.Textarea(attrs={'rows': 6}), required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        model_choices = get_model_choice_options()
+        self.fields['selected_model'].choices = model_choices
+        self.fields['selected_model'].initial = model_choices[0][0]
 
 
 class BatchLabForm(forms.ModelForm):
     class Meta:
         model = BatchGroup
-        fields = ['name', 'prompt_profile', 'seed_problem_override', 'baseline_override', 'repetitions']
+        fields = ['name', 'prompt_profile', 'selected_model', 'seed_problem_override', 'baseline_override', 'repetitions']
         widgets = {
             'seed_problem_override': forms.Textarea(attrs={'rows': 5}),
             'baseline_override': forms.Textarea(attrs={'rows': 5}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        model_choices = get_model_choice_options()
+        self.fields['selected_model'].label = 'Model'
+        self.fields['selected_model'].widget = forms.Select(choices=model_choices)
+        self.fields['selected_model'].initial = model_choices[0][0]
 
 
 class EvaluationReviewForm(forms.ModelForm):
@@ -113,7 +128,14 @@ class EvaluationReviewForm(forms.ModelForm):
 class LearningSessionCreateForm(forms.ModelForm):
     class Meta:
         model = LearningSession
-        fields = ['participant_code', 'prompt_profile', 'target_turns']
+        fields = ['participant_code', 'prompt_profile', 'selected_model', 'target_turns']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        model_choices = get_model_choice_options()
+        self.fields['selected_model'].label = 'Model'
+        self.fields['selected_model'].widget = forms.Select(choices=model_choices)
+        self.fields['selected_model'].initial = model_choices[0][0]
 
 
 class LearningTurnSubmitForm(forms.ModelForm):

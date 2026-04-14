@@ -4,6 +4,7 @@ import time
 from django.utils import timezone
 
 from lab.models import BatchGroup, ExperimentRun
+from .model_catalog import resolve_model_choice
 from .llm import chat_completion, extract_content
 from .parser import parse_json_from_text
 from .prompt_builder import build_assembled_prompt, build_run_messages
@@ -35,11 +36,13 @@ def execute_run(
     batch_group=None,
     extra_context='',
     difficulty_hint='',
+    model_choice='',
 ):
     effective_seed = seed_problem_override.strip() or profile.seed_problem_text
     effective_baseline = baseline_override.strip() or profile.baseline_text
     difficulty = _choose_difficulty(profile, difficulty_hint=difficulty_hint)
     styles = _choose_styles(profile)
+    actual_model = resolve_model_choice(model_choice)
     assembled_prompt = build_assembled_prompt(
         profile,
         seed_problem=effective_seed,
@@ -55,6 +58,8 @@ def execute_run(
         batch_group=batch_group,
         seed_problem_override=seed_problem_override,
         baseline_override=baseline_override,
+        requested_model=model_choice,
+        actual_model=actual_model,
         effective_seed_problem=effective_seed,
         effective_baseline=effective_baseline,
         effective_difficulty=difficulty.name if difficulty else '',
@@ -63,7 +68,7 @@ def execute_run(
     )
     started = time.perf_counter()
     try:
-        payload = chat_completion(build_run_messages(profile, assembled_prompt))
+        payload = chat_completion(build_run_messages(profile, assembled_prompt), model=actual_model)
         raw_response = extract_content(payload)
         parsed = parse_json_from_text(raw_response)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
@@ -92,6 +97,7 @@ def execute_batch(group):
                 seed_problem_override=group.seed_problem_override,
                 baseline_override=group.baseline_override,
                 batch_group=group,
+                model_choice=group.actual_model or group.selected_model,
             )
         group.status = BatchGroup.STATUS_COMPLETED
     except Exception:

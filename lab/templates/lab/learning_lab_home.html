@@ -20,18 +20,19 @@
     <h3>Existing sessions</h3>
     <table>
       <thead>
-        <tr><th>Participant</th><th>Profile</th><th>Status</th><th>Action</th></tr>
+        <tr><th>Participant</th><th>Profile</th><th>Model</th><th>Status</th><th>Action</th></tr>
       </thead>
       <tbody>
         {% for session in sessions %}
           <tr>
             <td>{{ session.participant_code }}</td>
             <td>{{ session.prompt_profile.name }}</td>
+            <td>{{ session.actual_model|default:session.selected_model|default:'-' }}</td>
             <td>{{ session.status }}</td>
             <td><a href="{% url 'learning_lab_session' session.pk %}">Open</a></td>
           </tr>
         {% empty %}
-          <tr><td colspan="4">No sessions yet.</td></tr>
+          <tr><td colspan="5">No sessions yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

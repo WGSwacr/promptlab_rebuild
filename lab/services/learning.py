@@ -38,6 +38,7 @@ def create_next_turn(session, difficulty_hint):
         name=f'{session.participant_code} round {session.completed_turns + 1}',
         run_type='single',
         difficulty_hint=difficulty_hint,
+        model_choice=session.actual_model or session.selected_model,
         extra_context=(
             'Generate exactly one follow-up question for a learning session. '
             f'Target difficulty: {difficulty_hint}.\n{extra_context}'
@@ -50,6 +51,7 @@ def create_next_turn(session, difficulty_hint):
         round_number=next_round,
         generated_focus=str(payload.get('focus', '')),
         generated_question=str(payload.get('question', run.raw_response or run.error_message or 'Generation failed.')),
+        model_used=run.actual_model,
         difficulty_used=str(payload.get('difficulty', difficulty_hint)),
         question_payload=payload,
     )

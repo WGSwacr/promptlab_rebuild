@@ -34,13 +34,16 @@ from .models import (
 )
 from .services.analysis import (
     generated_exercise_quality,
+    generated_exercise_quality_matrix,
     learning_support_results,
     questionnaire_results,
     representative_case,
     system_performance,
+    system_performance_matrix,
 )
 from .services.learning import create_first_turn, grade_turn, maybe_advance_session
 from .services.llm import LLMError, chat_completion, extract_content
+from .services.model_catalog import resolve_model_choice
 from .services.prompt_builder import build_assembled_prompt, build_baseline_messages
 from .services.runner import execute_batch, execute_run
 
@@ -394,6 +397,7 @@ def run_lab(request):
                 profile=profile,
                 name=form.cleaned_data.get('name') or f'{profile.name} single run',
                 run_type=ExperimentRun.RUN_SINGLE,
+                model_choice=form.cleaned_data.get('selected_model', ''),
                 seed_problem_override=form.cleaned_data.get('seed_problem_override', ''),
                 baseline_override=form.cleaned_data.get('baseline_override', ''),
             )
@@ -439,7 +443,9 @@ def batch_lab(request):
     if request.method == 'POST':
         form = BatchLabForm(request.POST)
         if form.is_valid():
-            group = form.save()
+            group = form.save(commit=False)
+            group.actual_model = resolve_model_choice(form.cleaned_data.get('selected_model', ''))
+            group.save()
             execute_batch(group)
             messages.success(request, 'Batch run completed.')
             return redirect(f"{reverse('batch_lab')}?group={group.pk}")
@@ -456,6 +462,7 @@ def batch_lab(request):
     paginator = Paginator(runs, 1)
     page_obj = paginator.get_page(request.GET.get('page'))
     current_run = page_obj.object_list[0] if page_obj.object_list else None
+    review_form = EvaluationReviewForm()
     return render(
         request,
         'lab/batch_lab.html',
@@ -465,6 +472,7 @@ def batch_lab(request):
             'selected_group': selected_group,
             'page_obj': page_obj,
             'current_run': current_run,
+            'review_form': review_form,
         },
     )
 
@@ -473,7 +481,9 @@ def learning_lab_home(request):
     if request.method == 'POST':
         form = LearningSessionCreateForm(request.POST)
         if form.is_valid():
-            session = form.save()
+            session = form.save(commit=False)
+            session.actual_model = resolve_model_choice(form.cleaned_data.get('selected_model', ''))
+            session.save()
             create_first_turn(session)
             messages.success(request, 'Learning session created.')
             return redirect('learning_lab_session', pk=session.pk)
@@ -532,7 +542,9 @@ def learning_lab_questionnaire(request, pk):
 def analysis_page(request):
     context = {
         'system_stats': system_performance(),
+        'system_matrix': system_performance_matrix(),
         'quality_stats': generated_exercise_quality(),
+        'quality_matrix': generated_exercise_quality_matrix(),
         'learning_stats': learning_support_results(),
         'questionnaire_rows': questionnaire_results(),
         'case_session': representative_case(),

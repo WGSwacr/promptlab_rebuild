@@ -4,9 +4,7 @@ from django.conf import settings
 
 class LLMError(RuntimeError):
     pass
-
-
-def chat_completion(messages, temperature=None, timeout=None):
+def chat_completion(messages, temperature=None, timeout=None, model=None):
     response = requests.post(
         f"{settings.LM_STUDIO_BASE_URL.rstrip('/')}/v1/chat/completions",
         headers={
@@ -14,7 +12,7 @@ def chat_completion(messages, temperature=None, timeout=None):
             'Authorization': f'Bearer {settings.LM_STUDIO_API_KEY}',
         },
         json={
-            'model': settings.LM_STUDIO_MODEL,
+            'model': model or settings.LM_STUDIO_MODEL,
             'temperature': settings.LM_STUDIO_TEMPERATURE if temperature is None else temperature,
             'messages': messages,
             'stream': False,

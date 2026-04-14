@@ -10,9 +10,24 @@
 <section class="card">
   <h3>System Performance</h3>
   <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        {% for column in system_matrix.columns %}
+          <th>{{ column }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
     <tbody>
-      {% for item in system_stats %}
-        <tr><th>{{ item.label }}</th><td>{{ item.value }}</td></tr>
+      {% for row in system_matrix.rows %}
+        <tr>
+          <th>{{ row.label }}</th>
+          {% for value in row.values %}
+            <td>{{ value }}</td>
+          {% endfor %}
+        </tr>
+      {% empty %}
+        <tr><td colspan="2">No run data yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -20,12 +35,25 @@
 <section class="card">
   <h3>Generated Exercise Quality</h3>
   <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        {% for column in quality_matrix.columns %}
+          <th>{{ column }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
     <tbody>
-      <tr><th>Knowledge alignment</th><td>{{ quality_stats.knowledge_alignment|default:'-' }}</td></tr>
-      <tr><th>Difficulty appropriateness</th><td>{{ quality_stats.difficulty_appropriateness|default:'-' }}</td></tr>
-      <tr><th>Structural completeness</th><td>{{ quality_stats.structural_completeness|default:'-' }}</td></tr>
-      <tr><th>Novelty</th><td>{{ quality_stats.novelty|default:'-' }}</td></tr>
-      <tr><th>Overall mean</th><td>{{ quality_stats.overall_mean|default:'-' }}</td></tr>
+      {% for row in quality_matrix.rows %}
+        <tr>
+          <th>{{ row.label }}</th>
+          {% for value in row.values %}
+            <td>{{ value }}</td>
+          {% endfor %}
+        </tr>
+      {% empty %}
+        <tr><td colspan="2">No review data yet.</td></tr>
+      {% endfor %}
     </tbody>
   </table>
 </section>
@@ -55,14 +83,15 @@
 <section class="card">
   <h3>Representative Case</h3>
   {% if case_session %}
-    <p><strong>Participant:</strong> {{ case_session.participant_code }} | <strong>Profile:</strong> {{ case_session.prompt_profile.name }}</p>
+    <p><strong>Participant:</strong> {{ case_session.participant_code }} | <strong>Profile:</strong> {{ case_session.prompt_profile.name }} | <strong>Model:</strong> {{ case_session.actual_model|default:case_session.selected_model|default:'-' }}</p>
     <table>
-      <thead><tr><th>Round</th><th>Focus</th><th>Learner result</th><th>System action</th></tr></thead>
+      <thead><tr><th>Round</th><th>Focus</th><th>Model</th><th>Learner result</th><th>System action</th></tr></thead>
       <tbody>
         {% for turn in case_session.turns.all %}
           <tr>
             <td>{{ turn.round_number }}</td>
             <td>{{ turn.generated_focus }}</td>
+            <td>{{ turn.model_used|default:case_session.actual_model|default:'-' }}</td>
             <td>{{ turn.result_label }}</td>
             <td>{{ turn.system_action }}</td>
           </tr>

@@ -70,6 +70,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LM_STUDIO_BASE_URL = os.getenv('LM_STUDIO_BASE_URL', 'http://127.0.0.1:1234')
 LM_STUDIO_API_KEY = os.getenv('LM_STUDIO_API_KEY', 'lm-studio')
-LM_STUDIO_MODEL = os.getenv('LM_STUDIO_MODEL', 'openai/gpt-oss-20b')
 LM_STUDIO_TEMPERATURE = float(os.getenv('LM_STUDIO_TEMPERATURE', '0.2'))
-LM_STUDIO_CHAT_TIMEOUT = int(os.getenv('LM_STUDIO_CHAT_TIMEOUT', '60'))
+LM_STUDIO_CHAT_TIMEOUT = int(os.getenv('LM_STUDIO_CHAT_TIMEOUT', '180'))
