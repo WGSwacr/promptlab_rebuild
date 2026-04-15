@@ -13,7 +13,8 @@
     <thead>
       <tr>
         <th>Metric</th>
-        {% for column in system_matrix.columns %}
+        <th>Overall</th>
+        {% for column in system_matrix.columns|slice:"1:" %}
           <th>{{ column }}</th>
         {% endfor %}
       </tr>
@@ -38,7 +39,8 @@
     <thead>
       <tr>
         <th>Metric</th>
-        {% for column in quality_matrix.columns %}
+        <th>Overall</th>
+        {% for column in quality_matrix.columns|slice:"1:" %}
           <th>{{ column }}</th>
         {% endfor %}
       </tr>

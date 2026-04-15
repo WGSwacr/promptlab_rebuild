@@ -275,9 +275,6 @@ class Questionnaire(models.Model):
     q8_readability = models.PositiveSmallIntegerField(validators=LIKERT_VALIDATORS)
     q9_willingness_to_reuse = models.PositiveSmallIntegerField(validators=LIKERT_VALIDATORS)
     q10_overall_helpfulness = models.PositiveSmallIntegerField(validators=LIKERT_VALIDATORS)
-    open_helpful_part = models.TextField(blank=True)
-    open_problem_encountered = models.TextField(blank=True)
-    open_suggestion = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

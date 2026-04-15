@@ -99,7 +99,7 @@ class BatchLabForm(forms.ModelForm):
     prompt_profiles = forms.ModelMultipleChoiceField(
         queryset=PromptProfile.objects.all(),
         label='Prompt profiles',
-        widget=forms.SelectMultiple(attrs={'size': 6}),
+        widget=forms.CheckboxSelectMultiple,
     )
 
     class Meta:
@@ -180,8 +180,3 @@ class QuestionnaireForm(forms.ModelForm):
     class Meta:
         model = Questionnaire
         exclude = ['session', 'created_at']
-        widgets = {
-            'open_helpful_part': forms.Textarea(attrs={'rows': 4}),
-            'open_problem_encountered': forms.Textarea(attrs={'rows': 4}),
-            'open_suggestion': forms.Textarea(attrs={'rows': 4}),
-        }

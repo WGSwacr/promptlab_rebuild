@@ -1,4 +1,3 @@
-from collections import defaultdict
 from statistics import mean, pstdev
 
 from django.db.models import Avg, Count, Q
@@ -27,22 +26,34 @@ def system_performance():
     ]
 
 
-def system_performance_by_model():
+def system_performance_by_profile():
     rows = []
-    for item in ExperimentRun.objects.values('actual_model').annotate(
+    batch_totals = {
+        item['prompt_profiles__name']: item
+        for item in BatchGroup.objects.values('prompt_profiles__name').annotate(
+            total_groups=Count('id', distinct=True),
+            completed_groups=Count('id', filter=Q(status=BatchGroup.STATUS_COMPLETED), distinct=True),
+        )
+        if item['prompt_profiles__name']
+    }
+    for item in ExperimentRun.objects.values('prompt_profile__name').annotate(
         total_runs=Count('id'),
         valid_outputs=Count('id', filter=Q(parse_success=True)),
         avg_response_ms=Avg('response_time_ms'),
-    ).order_by('actual_model'):
+    ).order_by('prompt_profile__name'):
         total_runs = item['total_runs'] or 0
         valid_outputs = item['valid_outputs'] or 0
         avg_response_ms = item['avg_response_ms'] or 0
+        profile_name = item['prompt_profile__name'] or '-'
+        batch_info = batch_totals.get(profile_name, {})
+        batch_total = batch_info.get('total_groups', 0) or 0
+        batch_completed = batch_info.get('completed_groups', 0) or 0
         rows.append({
-            'model': item['actual_model'] or '-',
+            'profile': profile_name,
             'total_runs': total_runs,
             'valid_outputs': valid_outputs,
             'structured_output_rate': f'{(valid_outputs / total_runs * 100):.1f}%' if total_runs else '0.0%',
-            'batch_completion_rate': '-',
+            'batch_completion_rate': f'{(batch_completed / batch_total * 100):.1f}%' if batch_total else '0.0%',
             'avg_response_time': f'{avg_response_ms / 1000:.2f} s' if avg_response_ms else '0.00 s',
         })
     return rows
@@ -51,8 +62,8 @@ def system_performance_by_model():
 def system_performance_matrix():
     overall_rows = system_performance()
     overall_map = {item.label: item.value for item in overall_rows}
-    model_rows = system_performance_by_model()
-    columns = ['Overall'] + [row['model'] for row in model_rows]
+    profile_rows = system_performance_by_profile()
+    columns = ['Overall'] + [row['profile'] for row in profile_rows]
     metrics = [
         ('Total runs', 'total_runs'),
         ('Valid structured outputs', 'valid_outputs'),
@@ -70,7 +81,7 @@ def system_performance_matrix():
     rows = []
     for label, key in metrics:
         values = [overall_map.get(overall_key_map[label], '-')]
-        values.extend(row.get(key, '-') for row in model_rows)
+        values.extend(row.get(key, '-') for row in profile_rows)
         rows.append({'label': label, 'values': values})
     return {'columns': columns, 'rows': rows}
 
@@ -87,15 +98,15 @@ def generated_exercise_quality():
     return agg
 
 
-def generated_exercise_quality_by_model():
+def generated_exercise_quality_by_profile():
     rows = []
-    for item in EvaluationReview.objects.values('experiment_run__actual_model').annotate(
+    for item in EvaluationReview.objects.values('experiment_run__prompt_profile__name').annotate(
         knowledge_alignment=Avg('knowledge_alignment'),
         difficulty_appropriateness=Avg('difficulty_appropriateness'),
         structural_completeness=Avg('structural_completeness'),
         novelty=Avg('novelty'),
         review_count=Count('id'),
-    ).order_by('experiment_run__actual_model'):
+    ).order_by('experiment_run__prompt_profile__name'):
         values = [
             item['knowledge_alignment'],
             item['difficulty_appropriateness'],
@@ -104,7 +115,7 @@ def generated_exercise_quality_by_model():
         ]
         filtered = [value for value in values if value is not None]
         rows.append({
-            'model': item['experiment_run__actual_model'] or '-',
+            'profile': item['experiment_run__prompt_profile__name'] or '-',
             'review_count': item['review_count'],
             'knowledge_alignment': round(item['knowledge_alignment'], 2) if item['knowledge_alignment'] is not None else None,
             'difficulty_appropriateness': round(item['difficulty_appropriateness'], 2) if item['difficulty_appropriateness'] is not None else None,
@@ -117,8 +128,8 @@ def generated_exercise_quality_by_model():
 
 def generated_exercise_quality_matrix():
     overall = generated_exercise_quality()
-    model_rows = generated_exercise_quality_by_model()
-    columns = ['Overall'] + [row['model'] for row in model_rows]
+    profile_rows = generated_exercise_quality_by_profile()
+    columns = ['Overall'] + [row['profile'] for row in profile_rows]
     metrics = [
         ('Knowledge alignment', 'knowledge_alignment'),
         ('Difficulty appropriateness', 'difficulty_appropriateness'),
@@ -132,7 +143,7 @@ def generated_exercise_quality_matrix():
         values = [round(overall_value, 2) if overall_value is not None else '-']
         values.extend(
             row.get(key) if row.get(key) is not None else '-'
-            for row in model_rows
+            for row in profile_rows
         )
         rows.append({'label': label, 'values': values})
     return {'columns': columns, 'rows': rows}
@@ -142,73 +153,21 @@ def learning_support_results():
     total_sessions = LearningSession.objects.count()
     completed_sessions = LearningSession.objects.filter(status=LearningSession.STATUS_COMPLETED).count()
     avg_rounds = LearningTurn.objects.values('learning_session').annotate(c=Count('id')).aggregate(avg=Avg('c'))['avg'] or 0
-    improved_sessions = 0
-    for session in LearningSession.objects.filter(status=LearningSession.STATUS_COMPLETED):
-        turns = list(session.turns.order_by('round_number'))
-        if len(turns) < 2:
-            continue
-        midpoint = len(turns) // 2
-        first = turns[:midpoint]
-        second = turns[midpoint:]
-        first_acc = mean(turn.accuracy_ratio for turn in first) if first else 0
-        second_acc = mean(turn.accuracy_ratio for turn in second) if second else 0
-        if second_acc > first_acc:
-            improved_sessions += 1
-    targeted_total = LearningTurn.objects.exclude(result_label=LearningTurn.RESULT_PENDING).count()
-    targeted_success = LearningTurn.objects.filter(
-        Q(system_action=LearningTurn.ACTION_EASY) |
-        Q(system_action=LearningTurn.ACTION_MEDIUM) |
-        Q(system_action=LearningTurn.ACTION_HARD)
-    ).exclude(result_label=LearningTurn.RESULT_PENDING).count()
+    answered_turns = LearningTurn.objects.exclude(result_label=LearningTurn.RESULT_PENDING)
+    total_answered_turns = answered_turns.count()
+    avg_turn_accuracy = answered_turns.aggregate(avg=Avg('accuracy_ratio'))['avg'] or 0
+    fully_correct_turns = answered_turns.filter(result_label=LearningTurn.RESULT_CORRECT).count()
+    questionnaire_completed = Questionnaire.objects.count()
     return [
         SummaryStat('Total learning sessions', total_sessions),
         SummaryStat('Completed sessions', completed_sessions),
         SummaryStat('Session completion rate', f'{(completed_sessions / total_sessions * 100):.1f}%' if total_sessions else '0.0%'),
         SummaryStat('Average rounds per session', f'{avg_rounds:.2f}'),
-        SummaryStat('Sessions with improved later-round accuracy', improved_sessions),
-        SummaryStat('Targeted follow-up success rate', f'{(targeted_success / targeted_total * 100):.1f}%' if targeted_total else '0.0%'),
+        SummaryStat('Total answered turns', total_answered_turns),
+        SummaryStat('Average turn accuracy', f'{avg_turn_accuracy * 100:.1f}%'),
+        SummaryStat('Fully correct turn rate', f'{(fully_correct_turns / total_answered_turns * 100):.1f}%' if total_answered_turns else '0.0%'),
+        SummaryStat('Questionnaire completion rate', f'{(questionnaire_completed / completed_sessions * 100):.1f}%' if completed_sessions else '0.0%'),
     ]
-
-
-def learning_support_by_model():
-    session_groups = defaultdict(list)
-    for session in LearningSession.objects.all():
-        session_groups[session.actual_model or session.selected_model or '-'].append(session)
-
-    rows = []
-    for model_name, sessions in sorted(session_groups.items()):
-        total_sessions = len(sessions)
-        completed_sessions = sum(1 for session in sessions if session.status == LearningSession.STATUS_COMPLETED)
-        rounds = [session.turns.count() for session in sessions]
-        improved_sessions = 0
-        targeted_total = 0
-        targeted_success = 0
-        for session in sessions:
-            turns = list(session.turns.exclude(result_label=LearningTurn.RESULT_PENDING).order_by('round_number'))
-            targeted_total += len(turns)
-            targeted_success += sum(
-                1
-                for turn in turns
-                if turn.system_action in {LearningTurn.ACTION_EASY, LearningTurn.ACTION_MEDIUM, LearningTurn.ACTION_HARD}
-            )
-            if len(turns) < 2:
-                continue
-            midpoint = len(turns) // 2
-            first = turns[:midpoint]
-            second = turns[midpoint:]
-            first_acc = mean(turn.accuracy_ratio for turn in first) if first else 0
-            second_acc = mean(turn.accuracy_ratio for turn in second) if second else 0
-            if second_acc > first_acc:
-                improved_sessions += 1
-        rows.append({
-            'model': model_name,
-            'total_sessions': total_sessions,
-            'completion_rate': f'{(completed_sessions / total_sessions * 100):.1f}%' if total_sessions else '0.0%',
-            'avg_rounds': f'{(sum(rounds) / len(rounds)):.2f}' if rounds else '0.00',
-            'improved_sessions': improved_sessions,
-            'targeted_followup_rate': f'{(targeted_success / targeted_total * 100):.1f}%' if targeted_total else '0.0%',
-        })
-    return rows
 
 
 def questionnaire_results():
@@ -234,44 +193,5 @@ def questionnaire_results():
             'sd': round(pstdev(values), 2) if len(values) > 1 else (0 if values else None),
         })
     return rows
-
-
-def questionnaire_results_by_model():
-    items = [
-        'q1_topic_relevance',
-        'q2_difficulty_appropriateness',
-        'q3_clarity',
-        'q4_adaptive_followup',
-        'q5_step_by_step_support',
-        'q6_weak_point_identification',
-        'q7_ease_of_interaction',
-        'q8_readability',
-        'q9_willingness_to_reuse',
-        'q10_overall_helpfulness',
-    ]
-    rows = []
-    model_groups = defaultdict(list)
-    for questionnaire in Questionnaire.objects.select_related('session').all():
-        model_groups[questionnaire.session.actual_model or questionnaire.session.selected_model or '-'].append(questionnaire)
-    for model_name, questionnaires in sorted(model_groups.items()):
-        per_item_means = [mean(getattr(item, field) for item in questionnaires) for field in items]
-        rows.append({
-            'model': model_name,
-            'responses': len(questionnaires),
-            'overall_mean': round(mean(per_item_means), 2) if per_item_means else None,
-            'q1_mean': round(per_item_means[0], 2) if per_item_means else None,
-            'q2_mean': round(per_item_means[1], 2) if per_item_means else None,
-            'q3_mean': round(per_item_means[2], 2) if per_item_means else None,
-            'q4_mean': round(per_item_means[3], 2) if per_item_means else None,
-            'q5_mean': round(per_item_means[4], 2) if per_item_means else None,
-            'q6_mean': round(per_item_means[5], 2) if per_item_means else None,
-            'q7_mean': round(per_item_means[6], 2) if per_item_means else None,
-            'q8_mean': round(per_item_means[7], 2) if per_item_means else None,
-            'q9_mean': round(per_item_means[8], 2) if per_item_means else None,
-            'q10_mean': round(per_item_means[9], 2) if per_item_means else None,
-        })
-    return rows
-
-
 def representative_case():
     return LearningSession.objects.filter(status=LearningSession.STATUS_COMPLETED).order_by('-completed_at', '-created_at').first()
