@@ -6,6 +6,7 @@ from django.conf import settings
 
 
 RANDOM_MODEL_CHOICE = '__random__'
+EXCLUDED_MODEL_IDS = {'text-embedding-nomic-embed-text-v1.5'}
 
 _MODEL_CACHE: List[str] | None = None
 
@@ -28,7 +29,7 @@ def refresh_model_catalog():
             {
                 str(item.get('id', '')).strip()
                 for item in payload.get('data', [])
-                if str(item.get('id', '')).strip()
+                if str(item.get('id', '')).strip() and str(item.get('id', '')).strip() not in EXCLUDED_MODEL_IDS
             }
         )
         _MODEL_CACHE = models or _fallback_models()

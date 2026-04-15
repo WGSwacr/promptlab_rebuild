@@ -96,9 +96,15 @@ class RunLabForm(forms.Form):
 
 
 class BatchLabForm(forms.ModelForm):
+    prompt_profiles = forms.ModelMultipleChoiceField(
+        queryset=PromptProfile.objects.all(),
+        label='Prompt profiles',
+        widget=forms.SelectMultiple(attrs={'size': 6}),
+    )
+
     class Meta:
         model = BatchGroup
-        fields = ['name', 'prompt_profile', 'selected_model', 'seed_problem_override', 'baseline_override', 'repetitions']
+        fields = ['name', 'selected_model', 'seed_problem_override', 'baseline_override', 'repetitions']
         widgets = {
             'seed_problem_override': forms.Textarea(attrs={'rows': 5}),
             'baseline_override': forms.Textarea(attrs={'rows': 5}),
@@ -110,6 +116,26 @@ class BatchLabForm(forms.ModelForm):
         self.fields['selected_model'].label = 'Model'
         self.fields['selected_model'].widget = forms.Select(choices=model_choices)
         self.fields['selected_model'].initial = model_choices[0][0]
+        if self.instance.pk:
+            self.fields['prompt_profiles'].initial = self.instance.prompt_profiles.all()
+
+    def clean_prompt_profiles(self):
+        profiles = self.cleaned_data['prompt_profiles']
+        if not profiles:
+            raise forms.ValidationError('Select at least one prompt profile.')
+        return profiles
+
+    def save(self, commit=True):
+        profiles = self.cleaned_data['prompt_profiles']
+        instance = super().save(commit=False)
+        instance.prompt_profile = profiles[0]
+        if commit:
+            instance.save()
+            self.save_m2m()
+            instance.prompt_profiles.set(profiles)
+        else:
+            self._pending_prompt_profiles = profiles
+        return instance
 
 
 class EvaluationReviewForm(forms.ModelForm):
@@ -128,7 +154,10 @@ class EvaluationReviewForm(forms.ModelForm):
 class LearningSessionCreateForm(forms.ModelForm):
     class Meta:
         model = LearningSession
-        fields = ['participant_code', 'prompt_profile', 'selected_model', 'target_turns']
+        fields = ['participant_code', 'prompt_profile', 'selected_model', 'seed_problem_text', 'target_turns']
+        widgets = {
+            'seed_problem_text': forms.Textarea(attrs={'rows': 6}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

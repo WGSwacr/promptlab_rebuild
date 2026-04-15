@@ -85,7 +85,7 @@
   {% if case_session %}
     <p><strong>Participant:</strong> {{ case_session.participant_code }} | <strong>Profile:</strong> {{ case_session.prompt_profile.name }} | <strong>Model:</strong> {{ case_session.actual_model|default:case_session.selected_model|default:'-' }}</p>
     <table>
-      <thead><tr><th>Round</th><th>Focus</th><th>Model</th><th>Learner result</th><th>System action</th></tr></thead>
+      <thead><tr><th>Round</th><th>Baseline</th><th>Model</th><th>Learner result</th><th>System action</th></tr></thead>
       <tbody>
         {% for turn in case_session.turns.all %}
           <tr>

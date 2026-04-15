@@ -5,6 +5,13 @@ from .code_runner import execute_python_code
 from .runner import execute_run
 
 
+def _baseline_text(value):
+    if isinstance(value, list):
+        parts = [str(item).strip() for item in value if str(item).strip()]
+        return ', '.join(parts)
+    return str(value or '').strip()
+
+
 def _result_from_accuracy(correct_count, total_count):
     if total_count <= 0:
         return LearningTurn.RESULT_INCORRECT, 'easy', LearningTurn.ACTION_EASY
@@ -39,6 +46,7 @@ def create_next_turn(session, difficulty_hint):
         run_type='single',
         difficulty_hint=difficulty_hint,
         model_choice=session.actual_model or session.selected_model,
+        seed_problem_override=session.seed_problem_text,
         extra_context=(
             'Generate exactly one follow-up question for a learning session. '
             f'Target difficulty: {difficulty_hint}.\n{extra_context}'
@@ -49,8 +57,8 @@ def create_next_turn(session, difficulty_hint):
     turn = LearningTurn.objects.create(
         learning_session=session,
         round_number=next_round,
-        generated_focus=str(payload.get('focus', '')),
-        generated_question=str(payload.get('question', run.raw_response or run.error_message or 'Generation failed.')),
+        generated_focus=_baseline_text(payload.get('baseline')),
+        generated_question=str(payload.get('description', run.raw_response or run.error_message or 'Generation failed.')),
         model_used=run.actual_model,
         difficulty_used=str(payload.get('difficulty', difficulty_hint)),
         question_payload=payload,

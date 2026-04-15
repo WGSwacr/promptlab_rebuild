@@ -40,12 +40,30 @@
         <div class="result-view" data-view-panel="question-run-{{ current_run.pk }}" hidden>
           <div class="subcard question-view-block">
             <p><strong>Title:</strong> {{ current_run.structured_output.title|default:'-' }}</p>
-            <p><strong>Focus:</strong> {{ current_run.structured_output.focus|default:'-' }}</p>
+            <p><strong>Baseline:</strong> {{ current_run.structured_output.baseline|default:'-' }}</p>
             <p><strong>Difficulty:</strong> {{ current_run.structured_output.difficulty|default:'-' }}</p>
           </div>
           <div class="subcard question-view-block">
-            <h4>Question</h4>
-            <pre>{{ current_run.structured_output.question|default:'No question generated.' }}</pre>
+            <h4>Description</h4>
+            <pre>{{ current_run.structured_output.description|default:'No question generated.' }}</pre>
+          </div>
+          <div class="subcard question-view-block">
+            <h4>Sample tests</h4>
+            <table>
+              <thead><tr><th>#</th><th>Sample input</th><th>Sample output</th><th>Explanation</th></tr></thead>
+              <tbody>
+                {% for sample in current_run.structured_output.sampletests %}
+                  <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><pre>{{ sample.sample_input }}</pre></td>
+                    <td><pre>{{ sample.sample_output }}</pre></td>
+                    <td><pre>{{ sample.sample_explanation }}</pre></td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4">No sample tests available.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
           <div class="subcard question-view-block">
             <h4>Tests</h4>
@@ -63,6 +81,10 @@
                 {% endfor %}
               </tbody>
             </table>
+          </div>
+          <div class="subcard question-view-block">
+            <h4>Hints</h4>
+            <pre>{{ current_run.structured_output.hints|default:'-' }}</pre>
           </div>
         </div>
       </div>

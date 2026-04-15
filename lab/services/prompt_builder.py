@@ -5,14 +5,28 @@ JSON_SCHEMA = dedent(
     '''
     Return strict JSON only using this structure:
     {
-      "title": "short title",
-      "focus": "main knowledge focus",
+      "title": "title of the problem",
+      "baseline": ["relative baseline 1", "relative baseline 2"],
       "difficulty": "easy|medium|hard",
-      "question": "full programming problem statement",
+      "description": "content of the problem",
+      "sampletests": [
+        {
+          "sample_input": "sample input shown to the learner",
+          "sample_output": "sample output shown to the learner",
+          "sample_explanation": "why the sample output is correct"
+        }
+      ],
       "tests": [
-        {"input": "sample input", "output": "expected output"}
-      ]
+        {"input": "hidden test input", "output": "expected output"}
+      ],
+      "hints": "partial sample code with blanks left for the learner to fill in"
     }
+
+    Rules:
+    - "baseline" can be a single string or an array of strings.
+    - "sampletests" are visible examples for the learner and should not duplicate the hidden tests exactly.
+    - "tests" are for system evaluation only.
+    - "hints" should be code-like guidance with blanks for the key logic. The number of blanks should depend on the generated difficulty.
     '''
 ).strip()
 
@@ -38,7 +52,6 @@ def build_assembled_prompt(profile, seed_problem=None, baseline=None, difficulty
         style_presets = list(profile.style_presets.all())
     style_text = _style_text(style_presets)
     blocks = [
-        f'SYSTEM PROMPT:\n{profile.system_prompt.text.strip()}',
         f'TASK INSTRUCTION:\n{profile.task_instruction.text.strip()}',
         f'CURRICULUM:\n{profile.curriculum_text.strip()}',
         f'SEED PROBLEM:\n{seed_problem}',

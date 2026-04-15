@@ -99,6 +99,7 @@ class BatchGroup(models.Model):
 
     name = models.CharField(max_length=120)
     prompt_profile = models.ForeignKey(PromptProfile, on_delete=models.CASCADE, related_name='batch_groups')
+    prompt_profiles = models.ManyToManyField(PromptProfile, blank=True, related_name='batch_groups_multi')
     selected_model = models.CharField(max_length=200, blank=True)
     actual_model = models.CharField(max_length=200, blank=True)
     seed_problem_override = models.TextField(blank=True)
@@ -181,6 +182,7 @@ class LearningSession(models.Model):
     prompt_profile = models.ForeignKey(PromptProfile, on_delete=models.CASCADE, related_name='learning_sessions')
     selected_model = models.CharField(max_length=200, blank=True)
     actual_model = models.CharField(max_length=200, blank=True)
+    seed_problem_text = models.TextField()
     target_turns = models.PositiveIntegerField(default=5)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)

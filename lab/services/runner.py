@@ -89,16 +89,18 @@ def execute_batch(group):
     group.status = BatchGroup.STATUS_RUNNING
     group.save(update_fields=['status'])
     try:
+        profiles = list(group.prompt_profiles.all()) or [group.prompt_profile]
         for idx in range(1, group.repetitions + 1):
-            execute_run(
-                profile=group.prompt_profile,
-                name=f'{group.name} #{idx}',
-                run_type=ExperimentRun.RUN_BATCH,
-                seed_problem_override=group.seed_problem_override,
-                baseline_override=group.baseline_override,
-                batch_group=group,
-                model_choice=group.actual_model or group.selected_model,
-            )
+            for profile in profiles:
+                execute_run(
+                    profile=profile,
+                    name=f'{group.name} / {profile.name} #{idx}',
+                    run_type=ExperimentRun.RUN_BATCH,
+                    seed_problem_override=group.seed_problem_override,
+                    baseline_override=group.baseline_override,
+                    batch_group=group,
+                    model_choice=group.actual_model or group.selected_model,
+                )
         group.status = BatchGroup.STATUS_COMPLETED
     except Exception:
         group.status = BatchGroup.STATUS_FAILED

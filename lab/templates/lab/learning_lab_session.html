@@ -5,16 +5,43 @@
   <div>
     <h2>Learning Session: {{ session.participant_code }}</h2>
     <p>Profile: {{ session.prompt_profile.name }} | Model: {{ session.actual_model|default:session.selected_model|default:'-' }} | Target turns: {{ session.target_turns }} | Status: {{ session.status }}</p>
+    <p><strong>Seed problem:</strong> {{ session.seed_problem_text }}</p>
   </div>
   <a class="button secondary" href="{% url 'learning_lab' %}">Back</a>
 </section>
 {% if current_turn and session.status == 'active' %}
   <section class="card">
     <h3>Current turn: Round {{ current_turn.round_number }}</h3>
-    <p><strong>Focus:</strong> {{ current_turn.generated_focus }}</p>
+    <p><strong>Baseline:</strong> {{ current_turn.generated_focus }}</p>
     <p><strong>Model:</strong> {{ current_turn.model_used|default:session.actual_model|default:'-' }}</p>
     <p><strong>Difficulty:</strong> {{ current_turn.difficulty_used }}</p>
     <pre>{{ current_turn.generated_question }}</pre>
+    {% with payload=current_turn.question_payload %}
+      {% if payload.sampletests %}
+        <div class="subcard">
+          <h4>Sample tests</h4>
+          <table>
+            <thead><tr><th>#</th><th>Sample input</th><th>Sample output</th><th>Explanation</th></tr></thead>
+            <tbody>
+              {% for sample in payload.sampletests %}
+                <tr>
+                  <td>{{ forloop.counter }}</td>
+                  <td><pre>{{ sample.sample_input }}</pre></td>
+                  <td><pre>{{ sample.sample_output }}</pre></td>
+                  <td><pre>{{ sample.sample_explanation }}</pre></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+      {% if payload.hints %}
+        <div class="subcard">
+          <h4>Hints</h4>
+          <pre>{{ payload.hints }}</pre>
+        </div>
+      {% endif %}
+    {% endwith %}
     <form method="post">
       {% csrf_token %}
       {{ form.as_p }}
@@ -33,7 +60,7 @@
     <thead>
       <tr>
         <th>Round</th>
-        <th>Focus</th>
+        <th>Baseline</th>
         <th>Model</th>
         <th>Difficulty</th>
         <th>Result</th>
@@ -55,7 +82,30 @@
             <td colspan="6">
               <details>
                 <summary>Show question and grading</summary>
+                <p><strong>Baseline:</strong> {{ turn.generated_focus }}</p>
                 <pre>{{ turn.generated_question }}</pre>
+                {% with payload=turn.question_payload %}
+                  {% if payload.sampletests %}
+                    <h4>Sample tests</h4>
+                    <table>
+                      <thead><tr><th>#</th><th>Sample input</th><th>Sample output</th><th>Explanation</th></tr></thead>
+                      <tbody>
+                        {% for sample in payload.sampletests %}
+                          <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><pre>{{ sample.sample_input }}</pre></td>
+                            <td><pre>{{ sample.sample_output }}</pre></td>
+                            <td><pre>{{ sample.sample_explanation }}</pre></td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  {% endif %}
+                  {% if payload.hints %}
+                    <h4>Hints</h4>
+                    <pre>{{ payload.hints }}</pre>
+                  {% endif %}
+                {% endwith %}
                 {% if turn.learner_answer %}
                   <h4>Learner answer</h4>
                   <pre>{{ turn.learner_answer }}</pre>

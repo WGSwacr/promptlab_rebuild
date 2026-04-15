@@ -4,7 +4,7 @@
 <section class="page-header">
   <div>
     <h2>Batch Lab</h2>
-    <p>Run one selected profile repeatedly and review results by batch group.</p>
+    <p>Run one or more selected profiles repeatedly and review results by batch group.</p>
   </div>
 </section>
 <div class="grid two-col">
@@ -28,70 +28,104 @@
     <h3>Batch result preview</h3>
     {% if selected_group %}
       <p><strong>{{ selected_group.name }}</strong></p>
-      <p>Profile: {{ selected_group.prompt_profile.name }}</p>
+      <p>Profiles:
+        {% for profile in selected_group.prompt_profiles.all %}
+          {{ profile.name }}{% if not forloop.last %}, {% endif %}
+        {% empty %}
+          {{ selected_group.prompt_profile.name }}
+        {% endfor %}
+      </p>
       <p>Model request: {{ selected_group.selected_model|default:'-' }}</p>
       <p>Actual model: {{ selected_group.actual_model|default:'-' }}</p>
       <p>Repetitions: {{ selected_group.repetitions }}</p>
+      <p>Total scheduled runs: {{ selected_group.prompt_profiles.count|default:1 }} x {{ selected_group.repetitions }}</p>
       <p>Status: {{ selected_group.status }}</p>
       {% if current_run %}
-        <p><strong>Viewing:</strong> {{ current_run.name }}</p>
-        <p>Run model: {{ current_run.actual_model|default:'-' }}</p>
-        <p>Parse success: {{ current_run.parse_success }}</p>
-        <p>Response time: {{ current_run.response_time_ms }} ms</p>
-        {% if current_run.error_message %}<p>Error: {{ current_run.error_message }}</p>{% endif %}
-        <div class="button-row">
-          <button class="button secondary toggle-active" type="button" data-viewer-tab="raw-batch-{{ current_run.pk }}" aria-pressed="true">Raw response</button>
-          <button class="button secondary" type="button" data-viewer-tab="structured-batch-{{ current_run.pk }}" aria-pressed="false">Structured output</button>
-          <button class="button secondary" type="button" data-viewer-tab="question-batch-{{ current_run.pk }}" aria-pressed="false">Question view</button>
-        </div>
-        <div class="result-viewer" data-viewer="batch-{{ current_run.pk }}">
-          <div class="result-view" data-view-panel="raw-batch-{{ current_run.pk }}">
-            <pre>{{ current_run.raw_response }}</pre>
-          </div>
-          <div class="result-view" data-view-panel="structured-batch-{{ current_run.pk }}" hidden>
-            <pre>{{ current_run.structured_output|pprint }}</pre>
-          </div>
-          <div class="result-view" data-view-panel="question-batch-{{ current_run.pk }}" hidden>
-            <div class="subcard question-view-block">
-              <p><strong>Title:</strong> {{ current_run.structured_output.title|default:'-' }}</p>
-              <p><strong>Focus:</strong> {{ current_run.structured_output.focus|default:'-' }}</p>
-              <p><strong>Difficulty:</strong> {{ current_run.structured_output.difficulty|default:'-' }}</p>
+        <div class="grid two-col">
+          <div>
+            <p><strong>Viewing:</strong> {{ current_run.name }}</p>
+            <p>Run model: {{ current_run.actual_model|default:'-' }}</p>
+            <p>Parse success: {{ current_run.parse_success }}</p>
+            <p>Response time: {{ current_run.response_time_ms }} ms</p>
+            {% if current_run.error_message %}<p>Error: {{ current_run.error_message }}</p>{% endif %}
+            <div class="button-row">
+              <button class="button secondary toggle-active" type="button" data-viewer-tab="raw-batch-{{ current_run.pk }}" aria-pressed="true">Raw response</button>
+              <button class="button secondary" type="button" data-viewer-tab="structured-batch-{{ current_run.pk }}" aria-pressed="false">Structured output</button>
+              <button class="button secondary" type="button" data-viewer-tab="question-batch-{{ current_run.pk }}" aria-pressed="false">Question view</button>
             </div>
-            <div class="subcard question-view-block">
-              <h4>Question</h4>
-              <pre>{{ current_run.structured_output.question|default:'No question generated.' }}</pre>
+            <div class="result-viewer" data-viewer="batch-{{ current_run.pk }}">
+              <div class="result-view" data-view-panel="raw-batch-{{ current_run.pk }}">
+                <pre>{{ current_run.raw_response }}</pre>
+              </div>
+              <div class="result-view" data-view-panel="structured-batch-{{ current_run.pk }}" hidden>
+                <pre>{{ current_run.structured_output|pprint }}</pre>
+              </div>
+              <div class="result-view" data-view-panel="question-batch-{{ current_run.pk }}" hidden>
+                <div class="subcard question-view-block">
+                  <p><strong>Title:</strong> {{ current_run.structured_output.title|default:'-' }}</p>
+                  <p><strong>Baseline:</strong> {{ current_run.structured_output.baseline|default:'-' }}</p>
+                  <p><strong>Difficulty:</strong> {{ current_run.structured_output.difficulty|default:'-' }}</p>
+                </div>
+                <div class="subcard question-view-block">
+                  <h4>Description</h4>
+                  <pre>{{ current_run.structured_output.description|default:'No question generated.' }}</pre>
+                </div>
+                <div class="subcard question-view-block">
+                  <h4>Sample tests</h4>
+                  <table>
+                    <thead><tr><th>#</th><th>Sample input</th><th>Sample output</th><th>Explanation</th></tr></thead>
+                    <tbody>
+                      {% for sample in current_run.structured_output.sampletests %}
+                        <tr>
+                          <td>{{ forloop.counter }}</td>
+                          <td><pre>{{ sample.sample_input }}</pre></td>
+                          <td><pre>{{ sample.sample_output }}</pre></td>
+                          <td><pre>{{ sample.sample_explanation }}</pre></td>
+                        </tr>
+                      {% empty %}
+                        <tr><td colspan="4">No sample tests available.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                <div class="subcard question-view-block">
+                  <h4>Tests</h4>
+                  <table>
+                    <thead><tr><th>#</th><th>Input</th><th>Expected output</th></tr></thead>
+                    <tbody>
+                      {% for test in current_run.structured_output.tests %}
+                        <tr>
+                          <td>{{ forloop.counter }}</td>
+                          <td><pre>{{ test.input }}</pre></td>
+                          <td><pre>{{ test.output }}</pre></td>
+                        </tr>
+                      {% empty %}
+                        <tr><td colspan="3">No test cases available.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                <div class="subcard question-view-block">
+                  <h4>Hints</h4>
+                  <pre>{{ current_run.structured_output.hints|default:'-' }}</pre>
+                </div>
+              </div>
             </div>
-            <div class="subcard question-view-block">
-              <h4>Tests</h4>
-              <table>
-                <thead><tr><th>#</th><th>Input</th><th>Expected output</th></tr></thead>
-                <tbody>
-                  {% for test in current_run.structured_output.tests %}
-                    <tr>
-                      <td>{{ forloop.counter }}</td>
-                      <td><pre>{{ test.input }}</pre></td>
-                      <td><pre>{{ test.output }}</pre></td>
-                    </tr>
-                  {% empty %}
-                    <tr><td colspan="3">No test cases available.</td></tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+            <div class="pagination">
+              {% if page_obj.has_previous %}<a href="?group={{ selected_group.pk }}&page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+              <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+              {% if page_obj.has_next %}<a href="?group={{ selected_group.pk }}&page={{ page_obj.next_page_number }}">Next</a>{% endif %}
             </div>
           </div>
+          <div class="subcard">
+            <h4>Add manual review</h4>
+            <form method="post" action="{% url 'experiment_review_create' current_run.pk %}">
+              {% csrf_token %}
+              {{ review_form.as_p }}
+              <button class="button secondary" type="submit">Save review</button>
+            </form>
+          </div>
         </div>
-        <div class="pagination">
-          {% if page_obj.has_previous %}<a href="?group={{ selected_group.pk }}&page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
-          <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-          {% if page_obj.has_next %}<a href="?group={{ selected_group.pk }}&page={{ page_obj.next_page_number }}">Next</a>{% endif %}
-        </div>
-        <hr>
-        <h4>Add manual review</h4>
-        <form method="post" action="{% url 'experiment_review_create' current_run.pk %}">
-          {% csrf_token %}
-          {{ review_form.as_p }}
-          <button class="button secondary" type="submit">Save review</button>
-        </form>
       {% else %}
         <p>No runs saved for this batch group.</p>
       {% endif %}

@@ -446,12 +446,14 @@ def batch_lab(request):
             group = form.save(commit=False)
             group.actual_model = resolve_model_choice(form.cleaned_data.get('selected_model', ''))
             group.save()
+            if hasattr(form, '_pending_prompt_profiles'):
+                group.prompt_profiles.set(form._pending_prompt_profiles)
             execute_batch(group)
             messages.success(request, 'Batch run completed.')
             return redirect(f"{reverse('batch_lab')}?group={group.pk}")
     else:
         form = BatchLabForm()
-    groups = BatchGroup.objects.select_related('prompt_profile').all()
+    groups = BatchGroup.objects.select_related('prompt_profile').prefetch_related('prompt_profiles').all()
     selected_group = None
     group_id = request.GET.get('group')
     if group_id:
